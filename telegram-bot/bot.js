@@ -1627,16 +1627,23 @@ Choose your next step:
         bot.sendMessage(chatId, '❌ AI generation cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'use_trending_yes') {
+        console.log('🔥 User chose YES for trending data');
         const session = botState.autoBrandSessions.get(userId);
+        console.log('📋 Session found:', !!session);
+        console.log('📋 Session data:', session);
+        
         if (session) {
             session.data.useTrending = true;
+            console.log('🔥 Set useTrending to true');
             
             if (session.data.nameOnly) {
+                console.log('🎯 Name-only mode - calling processAutoBrandGeneration directly');
                 // For auto-name, generate immediately
                 await processAutoBrandGeneration(chatId, userId, session.data);
             } else {
                 // For auto-brand, ask for image style
                 session.step = 'waiting_for_style';
+                console.log('🎨 Brand mode - moving to style selection');
                 
                 const message = `
 🎨 *Step 3/3:* Choose your logo image style
@@ -1662,22 +1669,31 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
                         ]
                     }
                 });
+                
+                botState.autoBrandSessions.set(userId, session);
             }
-            
-            botState.autoBrandSessions.set(userId, session);
+        } else {
+            console.log('❌ No session found for trending YES');
         }
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'use_trending_no') {
+        console.log('🎨 User chose NO for trending data');
         const session = botState.autoBrandSessions.get(userId);
+        console.log('📋 Session found:', !!session);
+        console.log('📋 Session data:', session);
+        
         if (session) {
             session.data.useTrending = false;
+            console.log('🎨 Set useTrending to false');
             
             if (session.data.nameOnly) {
+                console.log('🎯 Name-only mode - calling processAutoBrandGeneration directly');
                 // For auto-name, generate immediately
                 await processAutoBrandGeneration(chatId, userId, session.data);
             } else {
                 // For auto-brand, ask for image style
                 session.step = 'waiting_for_style';
+                console.log('🎨 Brand mode - moving to style selection');
                 
                 const message = `
 🎨 *Step 3/3:* Choose your logo image style
@@ -1703,9 +1719,11 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
                         ]
                     }
                 });
+                
+                botState.autoBrandSessions.set(userId, session);
             }
-            
-            botState.autoBrandSessions.set(userId, session);
+        } else {
+            console.log('❌ No session found for trending NO');
         }
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'style_cartoon') {
