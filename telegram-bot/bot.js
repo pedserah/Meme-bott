@@ -948,19 +948,20 @@ What would you like to do with this ${nameOnly ? 'AI-generated name' : 'AI brand
         console.log('🎯 Concept name:', concept.name);
         console.log('📝 Session data before store:', sessionData);
         
-        const updatedSession = {
-            ...sessionData,
+        // Store in the correct session structure that matches what launchAIConcept expects
+        botState.autoBrandSessions.set(userId, {
             step: 'concept_ready',
+            chatId: chatId,
+            userId: userId,
+            data: sessionData,
             generatedConcept: concept,
-            generatedImage: imageResult,
-            chatId: chatId,  // Ensure chatId is stored
-            userId: userId   // Ensure userId is stored
-        };
-        
-        botState.autoBrandSessions.set(userId, updatedSession);
+            generatedImage: imageResult
+        });
         
         console.log('✅ Session stored successfully');
-        console.log('🔍 Stored session:', updatedSession);
+        const storedSession = botState.autoBrandSessions.get(userId);
+        console.log('🔍 Stored session:', storedSession);
+        console.log('🎯 Has generatedConcept:', !!storedSession?.generatedConcept);
         console.log('📋 All sessions after store:', Array.from(botState.autoBrandSessions.keys()));
 
     } catch (error) {
