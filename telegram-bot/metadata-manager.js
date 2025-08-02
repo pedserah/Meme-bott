@@ -1,17 +1,14 @@
 const { NFTStorage, File, Blob } = require('nft.storage');
 const axios = require('axios');
-const OpenAI = require('openai');
 const fs = require('fs');
 const path = require('path');
+
+// Fal.ai configuration
+const FAL_KEY = "1300b449-e271-476b-b9f8-6f2d81841f06:1f0149c502fa8bc957713a8c78ba92e9";
 
 // Initialize NFT.Storage client
 const NFT_STORAGE_API_KEY = '7ce552b4.11e9175658bf48bca961d12383336670';
 const nftStorage = new NFTStorage({ token: NFT_STORAGE_API_KEY });
-
-// Initialize OpenAI client
-const openai = new OpenAI({
-    apiKey: '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'
-});
 
 // Create tmp directory if it doesn't exist
 const tmpDir = path.join(__dirname, 'tmp');
