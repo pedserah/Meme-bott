@@ -178,6 +178,9 @@ class TokenManager {
             throw error;
         }
     }
+
+    // Create token metadata using Metaplex standard (simplified for devnet)
+    async createTokenMetadata(mint, payer, name, symbol, description, imageUrl) {
         try {
             console.log(`📝 Creating Metaplex metadata for ${symbol}...`);
             
