@@ -2019,9 +2019,9 @@ Ready to create your token with metadata?
                 // Success case - show AI generated image
                 if (tokenInfo.generatedImageUrl) {
                     try {
-                        console.log('📸 Sending AI-generated token image to Telegram...');
+                        console.log('📸 Sending Fal.ai-generated token image to Telegram...');
                         await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
-                            caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}\n📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}`,
+                            caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with Fal.ai\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}\n📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}`,
                             parse_mode: 'Markdown'
                         });
                     } catch (imageError) {
