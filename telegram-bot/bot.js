@@ -1937,5 +1937,5 @@ bot.on('polling_error', (error) => {
 // Start the bot
 initializeBot();
 
-console.log('🎯 Step 6 Complete: Enhanced Metadata & Rich Launch Flow Ready');
-console.log('⏳ Waiting for user testing of metadata token creation...');
+console.log('🎯 Step 7 Complete: AI-Powered Auto Branding with GPT-4 & DALL·E 3 Ready!');
+console.log('⏳ Ready for testing of /auto_brand and /auto_name commands...');
