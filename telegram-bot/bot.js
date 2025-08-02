@@ -2302,9 +2302,9 @@ async function launchAIConcept(chatId, userId, session) {
     const imageResult = session.generatedImage;
     
     try {
-        bot.sendMessage(chatId, '🔄 *Launching AI-Generated Token...* This may take 60-90 seconds.', { parse_mode: 'Markdown' });
+        bot.sendMessage(chatId, '🔄 *Launching AI-Generated Token with Enhanced Metadata...* This may take 90-120 seconds.', { parse_mode: 'Markdown' });
 
-        // Use AI concept to create token
+        // Use AI concept to create enhanced token with DALL·E 3 + nft.storage
         const tokenInfo = await tokenManager.createToken(
             concept.name,
             concept.ticker,
@@ -2314,39 +2314,30 @@ async function launchAIConcept(chatId, userId, session) {
             userId
         );
 
-        const tokenMessage = `
-🎉 *AI Token Created Successfully!*
+        const aiTokenMessage = `
+🎉 *AI Token Created with Enhanced Metadata!*
 
 📛 **Name:** ${tokenInfo.name}
 🏷️ **Symbol:** ${tokenInfo.symbol}
 🪙 **Supply:** ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol}
 📝 **Description:** ${tokenInfo.description || 'None'}
-🖼️ **Image:** ${tokenInfo.imageUrl ? 'AI-Generated Logo' : 'None'}
+
+🎨 **AI Enhancement:**
+${tokenInfo.metadataResult && tokenInfo.metadataResult.success ? 
+`✅ DALL·E 3 Logo Generated
+✅ Uploaded to IPFS via nft.storage
+🌐 Image URI: ${tokenInfo.imageUri}
+📋 Metadata URI: ${tokenInfo.metadataUri}` : 
+'⚠️ Basic metadata (AI generation failed)'}
 
 🌐 **Network:** Solana Devnet
 💰 **Minted to:** Wallet 1
-⚡ **AI-Powered:** GPT-4 ${imageResult ? '+ DALL·E 3' : 'Generated'}
+⚡ **AI-Powered:** GPT-4 + DALL·E 3 + Metaplex
 
 🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
         `;
 
-        const tokenMessage = `
-🎉 *AI Token Created Successfully!*
-
-📛 **Name:** ${tokenInfo.name}
-🏷️ **Symbol:** ${tokenInfo.symbol}
-🪙 **Supply:** ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol}
-📝 **Description:** ${tokenInfo.description || 'None'}
-🖼️ **Image:** ${tokenInfo.imageUri ? 'AI-Generated Logo on IPFS' : 'None'}
-
-🌐 **Network:** Solana Devnet
-💰 **Minted to:** Wallet 1
-⚡ **AI-Powered:** GPT-4 + DALL·E 3 Enhanced
-
-🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
-        `;
-
-        await bot.sendMessage(chatId, tokenMessage, { 
+        await bot.sendMessage(chatId, aiTokenMessage, { 
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
@@ -2362,16 +2353,20 @@ async function launchAIConcept(chatId, userId, session) {
             }
         });
 
-        // Send generated image if available
+        // Send the AI-generated image if available
         if (tokenInfo.metadataResult && tokenInfo.metadataResult.success && tokenInfo.generatedImageUrl) {
             try {
                 console.log('📸 Sending AI-generated token image...');
                 await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
-                    caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 Stored on IPFS: ${tokenInfo.imageUri}`,
+                    caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 Stored on IPFS: ${tokenInfo.imageUri}\n📋 Metadata URI: ${tokenInfo.metadataUri}`,
                     parse_mode: 'Markdown'
                 });
             } catch (imageError) {
                 console.error('❌ Error sending AI-generated image:', imageError);
+                // Send image URL as fallback
+                if (tokenInfo.generatedImageUrl) {
+                    bot.sendMessage(chatId, `🎨 *Generated Token Logo:* ${tokenInfo.generatedImageUrl}`, { parse_mode: 'Markdown' });
+                }
             }
         }
 
