@@ -774,6 +774,190 @@ bot.onText(/\/launch/, (msg) => {
     startTokenCreation(chatId, msg.from.id);
 });
 
+// Step 7: Auto Brand Command - AI-powered brand generation
+bot.onText(/\/auto_brand/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    startAutoBrandFlow(chatId, userId);
+});
+
+// Step 7: Auto Name Command - AI-powered name generation
+bot.onText(/\/auto_name/, (msg) => {
+    const chatId = msg.chat.id;
+    const userId = msg.from.id;
+    startAutoNameFlow(chatId, userId);
+});
+
+function startAutoBrandFlow(chatId, userId) {
+    // Initialize auto-brand session
+    botState.autoBrandSessions.set(userId, {
+        step: 'waiting_for_theme',
+        chatId: chatId,
+        data: {}
+    });
+
+    const message = `
+🤖 *AI Auto Brand Generator* - Step 7
+
+Let's create an AI-powered meme coin with trending data!
+
+*Step 1/3:* Please enter a theme or keyword for your coin (optional)
+(Example: "dogs", "space", "food", or send "none" for pure AI creativity)
+
+💡 *What happens next:*
+- I'll ask if you want trending data integration
+- Choose your preferred image style
+- GPT-4 will create the concept
+- DALL·E 3 will generate the logo
+- You'll get instant deployment options
+    `;
+
+    bot.sendMessage(chatId, message, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🎲 Pure AI Creativity', callback_data: 'auto_brand_no_theme' },
+                    { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                ]
+            ]
+        }
+    });
+}
+
+function startAutoNameFlow(chatId, userId) {
+    // Initialize auto-name session
+    botState.autoBrandSessions.set(userId, {
+        step: 'waiting_for_name_theme',
+        chatId: chatId,
+        data: { nameOnly: true }
+    });
+
+    const message = `
+🎯 *AI Auto Name Generator* - Step 7
+
+Let's create trending meme coin names with AI!
+
+*Step 1/2:* Please enter a theme or keyword (optional)
+(Example: "moon", "pepe", "rocket", or send "none" for pure trending analysis)
+
+💡 *What happens:*
+- AI analyzes current trending topics
+- GPT-4 generates creative names & tickers
+- No image generation (names only)
+- Quick results for rapid deployment
+    `;
+
+    bot.sendMessage(chatId, message, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🔥 Pure Trending', callback_data: 'auto_name_no_theme' },
+                    { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                ]
+            ]
+        }
+    });
+}
+
+async function processAutoBrandGeneration(chatId, userId, sessionData) {
+    try {
+        const { theme, useTrending, imageStyle, nameOnly } = sessionData;
+        
+        bot.sendMessage(chatId, `
+🔄 *${nameOnly ? 'Generating AI Names' : 'Creating AI Brand'}...*
+
+${useTrending ? '📈 Fetching trending data...' : ''}
+🤖 GPT-4 generating creative concept...
+${nameOnly ? '' : '🎨 DALL·E 3 creating logo...'}
+
+This may take 30-60 seconds...
+        `, { parse_mode: 'Markdown' });
+
+        // Generate meme coin concept with AI
+        const concept = await aiIntegrations.generateMemeCoinConcept(theme || '', useTrending);
+        
+        let imageResult = null;
+        if (!nameOnly) {
+            // Generate logo image with DALL·E 3
+            imageResult = await aiIntegrations.generateMemeCoinLogo(
+                concept.name, 
+                concept.description, 
+                imageStyle || 'cartoon'
+            );
+        }
+
+        // Format results message
+        const resultMessage = `
+🎉 *${nameOnly ? 'AI Name Generated!' : 'AI Brand Created!'}*
+
+📛 **Name:** ${concept.name}
+🏷️ **Ticker:** ${concept.ticker}  
+📝 **Description:** ${concept.description}
+${useTrending ? `\n🔥 **Trending Context:** ${aiIntegrations.getTrendingSummary()}` : ''}
+${nameOnly ? '' : `🎨 **Logo Style:** ${imageStyle || 'cartoon'}`}
+
+🌐 **Network:** Solana Devnet
+⚡ **AI-Generated:** GPT-4 ${nameOnly ? '' : '+ DALL·E 3'}
+        `;
+
+        // Send image if generated
+        if (imageResult && imageResult.imageUrl && !imageResult.error) {
+            try {
+                await bot.sendPhoto(chatId, imageResult.imageUrl, {
+                    caption: resultMessage,
+                    parse_mode: 'Markdown'
+                });
+            } catch (error) {
+                console.error('❌ Error sending generated image:', error);
+                bot.sendMessage(chatId, resultMessage + `\n\n⚠️ Generated image: ${imageResult.imageUrl}`, { parse_mode: 'Markdown' });
+            }
+        } else {
+            bot.sendMessage(chatId, resultMessage, { parse_mode: 'Markdown' });
+        }
+
+        // Action buttons
+        bot.sendMessage(chatId, `
+🚀 *Ready for Deployment!*
+
+What would you like to do with this ${nameOnly ? 'AI-generated name' : 'AI brand'}?
+        `, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { 
+                            text: '🚀 Launch Now', 
+                            callback_data: `launch_ai_concept_${userId}_${Date.now()}` 
+                        }
+                    ],
+                    [
+                        { 
+                            text: '🎲 Try Again', 
+                            callback_data: nameOnly ? 'auto_name' : 'auto_brand' 
+                        },
+                        { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                    ]
+                ]
+            }
+        });
+
+        // Store the generated concept for launch
+        botState.autoBrandSessions.set(userId, {
+            ...sessionData,
+            step: 'concept_ready',
+            generatedConcept: concept,
+            generatedImage: imageResult
+        });
+
+    } catch (error) {
+        console.error('❌ Auto brand generation error:', error);
+        bot.sendMessage(chatId, `❌ AI generation failed: ${error.message}\n\nPlease try again with /${nameOnly ? 'auto_name' : 'auto_brand'}`);
+        botState.autoBrandSessions.delete(userId);
+    }
+}
+
 function startTokenCreation(chatId, userId) {
     // Initialize user session
     botState.userSessions.set(userId, {
