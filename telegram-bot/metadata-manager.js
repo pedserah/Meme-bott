@@ -338,7 +338,7 @@ class MetadataManager {
         }
     }
 
-    // Complete process with proper error handling and retries
+    // Complete process with proper error handling and retries (updated for Fal.ai)
     async createCompleteTokenMetadata(tokenData) {
         const results = {
             success: false,
@@ -358,35 +358,33 @@ class MetadataManager {
         };
 
         try {
-            console.log('🚀 Starting complete token metadata creation with retries...');
+            console.log('🚀 Starting complete token metadata creation with Fal.ai...');
             console.log('🪙 Token data:', { 
                 name: tokenData.name, 
                 symbol: tokenData.symbol, 
                 description: tokenData.description 
             });
 
-            // Step 1: Generate meme image with DALL·E 3 (with retries)
+            // Step 1: Generate meme image with Fal.ai (with retries)
             const imageGeneration = await this.generateMemeImage(tokenData.name, tokenData.description);
             results.retryAttempts.imageGeneration = imageGeneration.attempt || 1;
             
             if (!imageGeneration.success) {
-                results.error = `Image generation failed after ${results.retryAttempts.imageGeneration} attempts: ${imageGeneration.error}`;
+                results.error = `Fal.ai image generation failed after ${results.retryAttempts.imageGeneration} attempts: ${imageGeneration.error}`;
                 console.log('⚠️ Proceeding without image due to generation failure');
                 return results; // Return with failure but continue token creation
             }
 
             results.generatedImageUrl = imageGeneration.imageUrl;
+            results.tempFilePath = imageGeneration.filepath;
 
-            // Step 2: Download and save image temporarily
-            const downloadResult = await this.downloadAndSaveImage(imageGeneration.imageUrl, tokenData.symbol);
-            
-            if (!downloadResult.success) {
-                results.error = `Image download failed: ${downloadResult.error}`;
-                console.log('⚠️ Proceeding without image due to download failure');
-                return results;
-            }
-
-            results.tempFilePath = downloadResult.filePath;
+            // Step 2: We already have the image saved locally from Fal.ai
+            const downloadResult = {
+                success: true,
+                filePath: imageGeneration.filepath,
+                fileName: imageGeneration.filename,
+                buffer: imageGeneration.buffer
+            };
 
             // Step 3: Upload image to nft.storage (with retries)
             const imageUpload = await this.uploadImageToNFTStorage(downloadResult.buffer, downloadResult.fileName);
@@ -418,7 +416,7 @@ class MetadataManager {
             results.metadata = metadataUpload.metadata;
             results.success = true;
 
-            console.log('🎉 Complete token metadata creation successful!');
+            console.log('🎉 Complete token metadata creation with Fal.ai successful!');
             console.log('📊 Final results:', {
                 ipfsImageUrl: results.ipfsImageUrl,
                 metadataIpfsUrl: results.metadataIpfsUrl,
