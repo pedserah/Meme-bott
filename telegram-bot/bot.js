@@ -2324,24 +2324,26 @@ async function launchAIConcept(chatId, userId, session) {
         );
 
         const aiTokenMessage = `
-🎉 *AI Token Created with Enhanced Metadata!*
+🎉 *AI Token Created with Enhanced Pipeline!*
 
 📛 **Name:** ${tokenInfo.name}
 🏷️ **Symbol:** ${tokenInfo.symbol}
 🪙 **Supply:** ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol}
 📝 **Description:** ${tokenInfo.description || 'None'}
 
-🎨 **AI Enhancement:**
+🎨 **AI Enhancement Status:**
 ${tokenInfo.metadataResult && tokenInfo.metadataResult.success ? 
-`✅ DALL·E 3 Logo Generated
-✅ Uploaded to IPFS via nft.storage
-🌐 Image URI: ${tokenInfo.imageUri}
-📋 Metadata URI: ${tokenInfo.metadataUri}` : 
-'⚠️ Basic metadata (AI generation failed)'}
+`✅ DALL·E 3 Logo Generated & Uploaded
+🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}
+📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}
+📊 Retries: Gen(${tokenInfo.metadataResult.retryAttempts?.imageGeneration || 0}), Up(${tokenInfo.metadataResult.retryAttempts?.imageUpload || 0}), Meta(${tokenInfo.metadataResult.retryAttempts?.metadataUpload || 0})` : 
+`❌ Image generation failed after retries
+⚠️ ${tokenInfo.metadataResult ? tokenInfo.metadataResult.error : 'Unknown error'}
+📊 Attempts: Gen(${tokenInfo.metadataResult?.retryAttempts?.imageGeneration || 0}), Up(${tokenInfo.metadataResult?.retryAttempts?.imageUpload || 0}), Meta(${tokenInfo.metadataResult?.retryAttempts?.metadataUpload || 0})`}
 
 🌐 **Network:** Solana Devnet
 💰 **Minted to:** Wallet 1
-⚡ **AI-Powered:** GPT-4 + DALL·E 3 + Metaplex
+⚡ **AI-Powered:** GPT-4 + DALL·E 3 + IPFS Pipeline
 
 🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
         `;
