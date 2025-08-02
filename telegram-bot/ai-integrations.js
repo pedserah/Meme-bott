@@ -263,7 +263,8 @@ Respond in this exact JSON format:
     // Generate meme coin logo using DALL·E 3
     async generateMemeCoinLogo(coinName, coinDescription, imageStyle = 'cartoon') {
         try {
-            console.log(`🎨 Generating ${imageStyle} logo for ${coinName} with DALL·E 3...`);
+            console.log(`🎨 Generating ${imageStyle} logo for "${coinName}" with DALL·E 3...`);
+            console.log('🔑 API Key status:', this.apiKeyStatus());
 
             const stylePrompt = imageStyle === '3D' 
                 ? '3D rendered, modern, sleek, high-quality 3D graphics'
@@ -281,6 +282,9 @@ Requirements:
 - Make it viral and memorable
 - High contrast and clear visibility
 - No text or words in the image`;
+
+            console.log('📝 Sending image prompt to DALL·E 3...');
+            console.log('🎨 Image style:', imageStyle);
 
             const response = await openai.images.generate({
                 model: "dall-e-3",
@@ -300,12 +304,20 @@ Requirements:
             };
 
         } catch (error) {
-            console.error('❌ Error generating logo with DALL·E 3:', error.message);
+            console.error('❌ Error generating logo with DALL·E 3:', error);
+            console.error('❌ Full image generation error:', {
+                name: error.name,
+                message: error.message,
+                code: error.code,
+                status: error.status
+            });
             
-            // Return a placeholder image URL
+            // Return a better placeholder image URL with coin name
+            const placeholderImageUrl = `https://via.placeholder.com/400x400/FF6B35/FFFFFF?text=${encodeURIComponent(coinName.substring(0, 10))}`;
+            
             return {
-                imageUrl: 'https://via.placeholder.com/400x400/FF6B35/FFFFFF?text=MEME+COIN',
-                prompt: 'Fallback placeholder image',
+                imageUrl: placeholderImageUrl,
+                prompt: 'Fallback placeholder image due to API error',
                 error: error.message
             };
         }
