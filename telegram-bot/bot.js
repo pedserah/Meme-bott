@@ -71,6 +71,8 @@ Available Commands:
 📈 /start_trading - Start automated trading ✅ REAL SWAPS
 ⏸️ /stop_trading - Stop automated trading
 🔴 /rugpull - Complete rugpull operation ✅ NEW
+🔴 /auto_rug - Automated conditional rugpull ✅ NEW
+❌ /cancel_auto_rug - Cancel auto-rugpull monitoring
 📊 /status - Show current operations
 
 ⚡ *Step 7 Complete:* AI-powered auto branding with GPT-4 & DALL·E 3!
