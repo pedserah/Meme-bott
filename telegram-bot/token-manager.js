@@ -31,10 +31,10 @@ class TokenManager {
         this.metadataManager = new MetadataManager();
     }
 
-    // Create a new SPL token with metadata
+    // Create a new SPL token with enhanced metadata
     async createToken(tokenName, ticker, totalSupply, description, imageUrl, createdBy) {
         try {
-            console.log(`🚀 Creating token: ${tokenName} (${ticker}) with metadata...`);
+            console.log(`🚀 Creating token: ${tokenName} (${ticker}) with enhanced metadata...`);
             
             // Get the first wallet (wallet[0] in user's terminology)
             const mintAuthority = this.walletManager.getWallet(1);
@@ -44,7 +44,21 @@ class TokenManager {
 
             console.log(`💰 Using wallet 1 as mint authority: ${mintAuthority.publicKey}`);
 
-            // Step 1: Create the mint
+            // Step 1: Create complete metadata with DALL·E generated image
+            console.log('🎨 Starting enhanced metadata creation...');
+            const metadataResult = await this.metadataManager.createCompleteTokenMetadata({
+                name: tokenName,
+                symbol: ticker, 
+                description: description,
+                totalSupply: totalSupply,
+                creator: mintAuthority.publicKey.toString()
+            });
+
+            if (!metadataResult.success) {
+                console.warn('⚠️ Enhanced metadata creation failed, proceeding with basic token:', metadataResult.error);
+            }
+
+            // Step 2: Create the mint
             console.log('📄 Creating mint...');
             
             const mint = await createMint(
@@ -57,7 +71,7 @@ class TokenManager {
 
             console.log(`✅ Mint created: ${mint.toString()}`);
 
-            // Step 2: Get or create associated token account for wallet 1
+            // Step 3: Get or create associated token account for wallet 1
             console.log('🏦 Creating associated token account...');
             const tokenAccount = await getOrCreateAssociatedTokenAccount(
                 this.connection,
@@ -68,7 +82,7 @@ class TokenManager {
 
             console.log(`✅ Token account created: ${tokenAccount.address.toString()}`);
 
-            // Step 3: Mint the total supply to wallet 1
+            // Step 4: Mint the total supply to wallet 1
             console.log(`🪙 Minting ${totalSupply} tokens...`);
             const mintAmount = totalSupply * Math.pow(10, 9); // Convert to smallest unit (9 decimals)
             
@@ -83,23 +97,22 @@ class TokenManager {
 
             console.log(`✅ Minted ${totalSupply} tokens with signature: ${mintSignature}`);
 
-            // Step 4: Create metadata (for devnet, we'll simulate this)
-            console.log('📝 Creating token metadata...');
-            let metadataResult = null;
-            
-            try {
-                metadataResult = await this.createTokenMetadata(
-                    mint,
-                    mintAuthority.keypair,
-                    tokenName,
-                    ticker,
-                    description,
-                    imageUrl
-                );
-                console.log('✅ Metadata created successfully');
-            } catch (metadataError) {
-                console.warn('⚠️ Metadata creation failed (continuing without):', metadataError.message);
-                // Continue without metadata - token is still functional
+            // Step 5: Apply Metaplex metadata if available
+            let metaplexResult = null;
+            if (metadataResult.success && metadataResult.metadataUri) {
+                try {
+                    console.log('📝 Applying Metaplex metadata on-chain...');
+                    metaplexResult = await this.applyMetaplexMetadata(
+                        mint,
+                        mintAuthority.keypair,
+                        tokenName,
+                        ticker,
+                        metadataResult.metadataUri
+                    );
+                    console.log('✅ Metaplex metadata applied successfully');
+                } catch (metaplexError) {
+                    console.warn('⚠️ Metaplex metadata application failed:', metaplexError.message);
+                }
             }
 
             // Store token information
@@ -110,22 +123,25 @@ class TokenManager {
                 totalSupply: totalSupply,
                 decimals: 9,
                 description: description || '',
-                imageUrl: imageUrl || '',
+                imageUrl: metadataResult.success ? metadataResult.imageUri : (imageUrl || ''),
+                generatedImageUrl: metadataResult.success ? metadataResult.generatedImageUrl : null,
+                metadataUri: metadataResult.success ? metadataResult.metadataUri : null,
                 mintAuthority: mintAuthority.publicKey,
                 tokenAccount: tokenAccount.address.toString(),
                 mintSignature: mintSignature,
                 metadataResult: metadataResult,
+                metaplexResult: metaplexResult,
                 createdAt: new Date().toISOString(),
                 createdBy: createdBy
             };
 
             this.createdTokens.set(mint.toString(), tokenInfo);
 
-            console.log('🎉 Token creation complete with metadata!');
+            console.log('🎉 Enhanced token creation complete!');
             return tokenInfo;
 
         } catch (error) {
-            console.error('❌ Token creation failed:', error);
+            console.error('❌ Enhanced token creation failed:', error);
             throw error;
         }
     }
