@@ -155,7 +155,7 @@ async function showStatus(chatId) {
         tradingInfo = `✅ Active (${runtime}m) - ${stats.totalTrades} trades (${successRate}% success)`;
     }
     
-    let statusMessage = `
+let statusMessage = `
 📊 <b>Enhanced Bot Status</b>
 
 🤖 Bot: Online ✅
@@ -164,10 +164,10 @@ async function showStatus(chatId) {
 🪙 Tokens Created: ${createdTokens.length}
 🏊 Pools Created: ${createdPools.length}
 📈 Trading: ${tradingInfo}
-⚡ Mode: Real DEX Trading (Step 6)
+⚡ Mode: Real DEX Trading + AI Branding (Step 7)
 
-<b>Current Step:</b> Step 6 Complete - Enhanced metadata flow
-<b>Features:</b> Token metadata, rich launch workflow, enhanced status
+<b>Current Step:</b> Step 7 Complete - AI-powered auto branding
+<b>Features:</b> GPT-4 naming, DALL·E 3 logos, trending analysis, metadata
     `;
 
     if (createdTokens.length > 0) {
