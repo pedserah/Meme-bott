@@ -1728,7 +1728,9 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
         
         const session = botState.autoBrandSessions.get(userId);
         console.log('🔍 Found session:', !!session);
-        console.log('🎯 Has concept:', session ? !!session.generatedConcept : false);
+        console.log('🎯 Session step:', session?.step);
+        console.log('🎯 Has generatedConcept:', !!session?.generatedConcept);
+        console.log('📋 Full session data:', JSON.stringify(session, null, 2));
         
         if (session && session.generatedConcept) {
             console.log('✅ Launching AI concept:', session.generatedConcept.name);
@@ -1736,8 +1738,8 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
             await launchAIConcept(chatId, userId, session);
         } else {
             console.log('❌ Session data missing - userId:', userId);
-            console.log('❌ Session content:', session);
-            bot.sendMessage(chatId, '❌ AI concept not found. Please generate a new one.');
+            console.log('❌ Missing concept - expected at session.generatedConcept');
+            bot.sendMessage(chatId, `❌ AI concept not found. Session step: ${session?.step || 'none'}. Please generate a new one.`);
         }
         bot.answerCallbackQuery(callbackQuery.id);
     }
