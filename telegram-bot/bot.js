@@ -38,7 +38,15 @@ const botState = {
     currentToken: null,
     userSessions: new Map(), // Track user input sessions
     tradingMode: 'real', // 'real' or 'simulation'
-    autoBrandSessions: new Map() // Track auto-brand sessions
+    autoBrandSessions: new Map(), // Track auto-brand sessions
+    autoRugMonitor: {
+        active: false,
+        conditions: null,
+        startTime: null,
+        chatId: null,
+        tokenMint: null,
+        intervalId: null
+    }
 };
 
 console.log('🚀 Solana Telegram Bot Starting...');
