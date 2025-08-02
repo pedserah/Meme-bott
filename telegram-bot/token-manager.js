@@ -21,11 +21,14 @@ const {
     mintTo
 } = require('@solana/spl-token');
 
+const MetadataManager = require('./metadata-manager');
+
 class TokenManager {
     constructor(connection, walletManager) {
         this.connection = connection;
         this.walletManager = walletManager;
         this.createdTokens = new Map(); // Store created tokens
+        this.metadataManager = new MetadataManager();
     }
 
     // Create a new SPL token with metadata
