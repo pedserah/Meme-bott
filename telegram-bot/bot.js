@@ -1780,6 +1780,73 @@ async function launchAIConcept(chatId, userId, session) {
     }
 }
 
+// Handle auto-brand theme input
+async function handleAutoBrandTheme(chatId, userId, theme, type) {
+    const session = botState.autoBrandSessions.get(userId);
+    if (!session) return;
+
+    session.data.theme = theme;
+    session.data.nameOnly = (type === 'name');
+    
+    if (type === 'name') {
+        // For auto-name, skip to trending question
+        session.step = 'waiting_for_trending';
+        
+        const message = `
+🎯 *Step 2/2:* Do you want to include trending data analysis?
+
+**Yes:** AI will analyze Google Trends + trending coins for context
+**No:** Pure creative AI generation without trends
+
+${theme ? `🎨 **Theme:** ${theme}` : '🎲 **Pure AI Creativity**'}
+        `;
+
+        bot.sendMessage(chatId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🔥 Yes, Use Trending Data', callback_data: 'use_trending_yes' },
+                        { text: '🎨 No, Pure AI', callback_data: 'use_trending_no' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                    ]
+                ]
+            }
+        });
+    } else {
+        // For auto-brand, ask for trending preference
+        session.step = 'waiting_for_trending';
+        
+        const message = `
+🤖 *Step 2/3:* Do you want to include trending data analysis?
+
+**Yes:** AI will analyze Google Trends + trending coins for context  
+**No:** Pure creative AI generation without trends
+
+${theme ? `🎨 **Theme:** ${theme}` : '🎲 **Pure AI Creativity**'}
+        `;
+
+        bot.sendMessage(chatId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🔥 Yes, Use Trending Data', callback_data: 'use_trending_yes' },
+                        { text: '🎨 No, Pure AI', callback_data: 'use_trending_no' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                    ]
+                ]
+            }
+        });
+    }
+
+    botState.autoBrandSessions.set(userId, session);
+}
+
 // Handle message input for auto-brand flows (updated version)
 bot.on('message', (msg) => {
     const userId = msg.from.id;
