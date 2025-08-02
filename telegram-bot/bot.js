@@ -1251,6 +1251,8 @@ You can restart monitoring with /auto_rug anytime.
     
     console.log('❌ Auto-rugpull monitoring cancelled by user');
 }
+
+function startAutoNameFlow(chatId, userId) {
     // Initialize auto-name session
     botState.autoBrandSessions.set(userId, {
         step: 'waiting_for_name_theme',
