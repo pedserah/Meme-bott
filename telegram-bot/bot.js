@@ -2187,6 +2187,82 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
             bot.sendMessage(chatId, `❌ AI concept not found. Session step: ${session?.step || 'none'}. Please generate a new one.`);
         }
         bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_rug') {
+        startAutoRugFlow(chatId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_auto_rug') {
+        cancelAutoRug(chatId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_rug_quick') {
+        // Quick setup with default conditions
+        const quickConditions = {
+            volume: 1000,
+            timeMinutes: 30,
+            dropPercent: 25
+        };
+        
+        const createdPools = raydiumManager.getAllPools();
+        if (createdPools.length === 1) {
+            startAutoRugMonitoring(chatId, createdPools[0].tokenMint, quickConditions);
+        } else {
+            showPoolSelectionForAutoRug(chatId, quickConditions);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_rug_custom') {
+        bot.sendMessage(chatId, `
+🔧 *Custom Auto-Rugpull Setup*
+
+Enter parameters separated by spaces:
+\`/auto_rug [volume] [minutes] [drop_percent]\`
+
+**Examples:**
+• \`/auto_rug 2000 45 30\` - 2000 volume OR 45min OR 30% drop
+• \`/auto_rug 5000 15 20\` - 5000 volume OR 15min OR 20% drop
+• \`/auto_rug 500 60 15\` - 500 volume OR 60min OR 15% drop
+
+**Parameters:**
+📊 Volume: Trading volume threshold (number of trades)
+⏰ Minutes: Maximum time before rugpull (1-1440 minutes)
+📉 Drop %: Price drop percentage trigger (5-90%)
+        `, { parse_mode: 'Markdown' });
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('auto_rug_pool_')) {
+        const parts = data.replace('auto_rug_pool_', '').split('_');
+        const tokenMint = parts[0];
+        const volume = parseFloat(parts[1]);
+        const timeMinutes = parseInt(parts[2]);  
+        const dropPercent = parseFloat(parts[3]);
+        
+        startAutoRugMonitoring(chatId, tokenMint, {
+            volume: volume,
+            timeMinutes: timeMinutes,
+            dropPercent: dropPercent
+        });
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_rug_status') {
+        if (botState.autoRugMonitor.active) {
+            const tokenInfo = tokenManager.getToken(botState.autoRugMonitor.tokenMint);
+            const elapsedMinutes = Math.floor((new Date() - botState.autoRugMonitor.startTime) / 60000);
+            const conditions = botState.autoRugMonitor.conditions;
+            
+            bot.sendMessage(chatId, `
+🔍 *Auto-Rugpull Status*
+
+🪙 **Token:** ${tokenInfo?.name || 'Unknown'} (${tokenInfo?.symbol || 'TOKEN'})
+⏰ **Running Time:** ${elapsedMinutes}/${conditions.timeMinutes} minutes
+📊 **Volume Target:** ${conditions.volume} trades
+📉 **Drop Target:** ${conditions.dropPercent}% price drop
+
+✅ **Status:** Active monitoring
+🔄 **Check Interval:** Every 60 seconds
+⏰ **Next Check:** In ${60 - (new Date().getSeconds())} seconds
+
+**Any condition met = Instant rugpull**
+            `, { parse_mode: 'Markdown' });
+        } else {
+            bot.sendMessage(chatId, '❌ No auto-rugpull monitoring is currently active.');
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
     }
 });
 
