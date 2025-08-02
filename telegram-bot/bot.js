@@ -2567,5 +2567,5 @@ bot.on('polling_error', (error) => {
 // Start the bot
 initializeBot();
 
-console.log('🎯 Step 7+ Complete: AI-Powered Branding + Auto-Rugpull System Ready!');
-console.log('⏳ Ready for testing /auto_brand, /auto_name, and /auto_rug commands...');
+console.log('🎯 Step 7+ Complete: AI-Powered Branding + Auto-Rugpull + Fal.ai System Ready!');
+console.log('⏳ Ready for testing /auto_brand, /auto_name, /auto_rug, and /launch commands...');
