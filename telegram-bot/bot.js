@@ -2008,10 +2008,26 @@ Ready to create your token with metadata?
 
             const tokenMessage = tokenManager.formatTokenForTelegram(tokenInfo);
             
-            bot.sendMessage(chatId, tokenMessage, { 
+            // Send the token creation message first
+            await bot.sendMessage(chatId, tokenMessage, { 
                 parse_mode: 'Markdown',
                 disable_web_page_preview: false
             });
+
+            // If we have a generated image, send it as a photo
+            if (tokenInfo.metadataResult && tokenInfo.metadataResult.success && tokenInfo.generatedImageUrl) {
+                try {
+                    console.log('📸 Sending generated token image to Telegram...');
+                    await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
+                        caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 Stored on IPFS: ${tokenInfo.imageUri}`,
+                        parse_mode: 'Markdown'
+                    });
+                } catch (imageError) {
+                    console.error('❌ Error sending generated image:', imageError);
+                    // Send image URL as fallback
+                    bot.sendMessage(chatId, `🎨 *Generated Token Logo:* ${tokenInfo.generatedImageUrl}`, { parse_mode: 'Markdown' });
+                }
+            }
 
             // Enhanced workflow - offer next steps
             const nextStepsMessage = `
