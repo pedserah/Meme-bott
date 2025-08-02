@@ -2368,13 +2368,13 @@ ${tokenInfo.metadataResult && tokenInfo.metadataResult.success ?
         if (tokenInfo.metadataResult && tokenInfo.metadataResult.success) {
             if (tokenInfo.generatedImageUrl) {
                 try {
-                    console.log('📸 Sending AI-generated token image...');
+                    console.log('📸 Sending Fal.ai-generated token image...');
                     await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
-                        caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}\n📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}`,
+                        caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with Fal.ai\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}\n📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}`,
                         parse_mode: 'Markdown'
                     });
                 } catch (imageError) {
-                    console.error('❌ Error sending AI-generated image:', imageError);
+                    console.error('❌ Error sending Fal.ai-generated image:', imageError);
                     // Send IPFS links as fallback
                     if (tokenInfo.generatedImageUrl && tokenInfo.ipfsImageUrl) {
                         bot.sendMessage(chatId, `🎨 *Generated Token Logo*\n\n🔗 Generated Image: ${tokenInfo.generatedImageUrl}\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}`, { parse_mode: 'Markdown' });
