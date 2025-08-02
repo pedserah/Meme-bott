@@ -2333,7 +2333,7 @@ async function launchAIConcept(chatId, userId, session) {
 
 🎨 **AI Enhancement Status:**
 ${tokenInfo.metadataResult && tokenInfo.metadataResult.success ? 
-`✅ DALL·E 3 Logo Generated & Uploaded
+`✅ Fal.ai Logo Generated & Uploaded
 🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}
 📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}
 📊 Retries: Gen(${tokenInfo.metadataResult.retryAttempts?.imageGeneration || 0}), Up(${tokenInfo.metadataResult.retryAttempts?.imageUpload || 0}), Meta(${tokenInfo.metadataResult.retryAttempts?.metadataUpload || 0})` : 
@@ -2343,7 +2343,7 @@ ${tokenInfo.metadataResult && tokenInfo.metadataResult.success ?
 
 🌐 **Network:** Solana Devnet
 💰 **Minted to:** Wallet 1
-⚡ **AI-Powered:** GPT-4 + DALL·E 3 + IPFS Pipeline
+⚡ **AI-Powered:** Creative Algorithm + Fal.ai + IPFS Pipeline
 
 🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
         `;
