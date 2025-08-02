@@ -453,12 +453,36 @@ class MetadataManager {
         }
     }
 
-    // Test connections
+    // Test connections (updated for Fal.ai)
     async testConnections() {
         try {
             console.log('🔍 Testing API connections...');
             
+            // Test Fal.ai connection
+            const testPrompt = "Simple test image";
+            console.log('🧪 Testing Fal.ai connection...');
+            
+            try {
+                const falResponse = await axios.post('https://api.fal.ai/v1/run/fal-ai/flux/dev', {
+                    prompt: testPrompt,
+                    image_size: "square",
+                    num_inference_steps: 10, // Lower for test
+                    guidance_scale: 7.5
+                }, {
+                    headers: {
+                        'Authorization': `Key ${FAL_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 30000
+                });
+                
+                console.log('✅ Fal.ai connection successful');
+            } catch (falError) {
+                console.error('❌ Fal.ai connection failed:', falError.message);
+            }
+            
             // Test nft.storage connection
+            console.log('🧪 Testing nft.storage connection...');
             const testData = JSON.stringify({ test: true, timestamp: new Date().toISOString() });
             const testFile = new File([testData], 'test.json', { type: 'application/json' });
             
@@ -470,6 +494,7 @@ class MetadataManager {
             
             return { 
                 success: true, 
+                falAi: true,
                 nftStorage: true,
                 testUri, 
                 cid 
@@ -478,6 +503,7 @@ class MetadataManager {
             console.error('❌ API connections test failed:', error);
             return { 
                 success: false, 
+                falAi: false,
                 nftStorage: false,
                 error: error.message 
             };
