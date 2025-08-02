@@ -953,7 +953,7 @@ What would you like to do with this ${nameOnly ? 'AI-generated name' : 'AI brand
 
     } catch (error) {
         console.error('❌ Auto brand generation error:', error);
-        bot.sendMessage(chatId, `❌ AI generation failed: ${error.message}\n\nPlease try again with /${nameOnly ? 'auto_name' : 'auto_brand'}`);
+        bot.sendMessage(chatId, `❌ AI generation failed: ${error.message}\n\nPlease try again with /${sessionData.nameOnly ? 'auto_name' : 'auto_brand'}`);
         botState.autoBrandSessions.delete(userId);
     }
 }
