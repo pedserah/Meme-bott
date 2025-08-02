@@ -75,7 +75,7 @@ Available Commands:
 ❌ /cancel_auto_rug - Cancel auto-rugpull monitoring
 📊 /status - Show current operations
 
-⚡ *Step 7 Complete:* AI-powered auto branding with GPT-4 & DALL·E 3!
+⚡ *Step 7+ Complete:* AI-powered auto branding with Fal.ai & nft.storage!
 🎯 *Features:* Auto naming, logo generation, trending analysis
     `;
     
