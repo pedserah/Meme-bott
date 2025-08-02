@@ -944,12 +944,24 @@ What would you like to do with this ${nameOnly ? 'AI-generated name' : 'AI brand
         });
 
         // Store the generated concept for launch
-        botState.autoBrandSessions.set(userId, {
+        console.log('💾 Storing generated concept for user:', userId);
+        console.log('🎯 Concept name:', concept.name);
+        console.log('📝 Session data before store:', sessionData);
+        
+        const updatedSession = {
             ...sessionData,
             step: 'concept_ready',
             generatedConcept: concept,
-            generatedImage: imageResult
-        });
+            generatedImage: imageResult,
+            chatId: chatId,  // Ensure chatId is stored
+            userId: userId   // Ensure userId is stored
+        };
+        
+        botState.autoBrandSessions.set(userId, updatedSession);
+        
+        console.log('✅ Session stored successfully');
+        console.log('🔍 Stored session:', updatedSession);
+        console.log('📋 All sessions after store:', Array.from(botState.autoBrandSessions.keys()));
 
     } catch (error) {
         console.error('❌ Auto brand generation error:', error);
