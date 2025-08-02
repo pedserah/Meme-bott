@@ -179,10 +179,11 @@ let statusMessage = `
 🪙 Tokens Created: ${createdTokens.length}
 🏊 Pools Created: ${createdPools.length}
 📈 Trading: ${tradingInfo}
-⚡ Mode: Real DEX Trading + AI Branding (Step 7)
+🔴 Auto-Rug: ${botState.autoRugMonitor.active ? '✅ Active' : '❌ Inactive'}
+⚡ Mode: Real DEX Trading + AI Branding + Auto-Rug (Step 7+)
 
-<b>Current Step:</b> Step 7 Complete - AI-powered auto branding
-<b>Features:</b> GPT-4 naming, DALL·E 3 logos, trending analysis, metadata
+<b>Current Step:</b> Step 7+ Complete - AI + Auto-Rugpull
+<b>Features:</b> GPT-4 naming, DALL·E 3 logos, automated conditional rugpulls
     `;
 
     if (createdTokens.length > 0) {
