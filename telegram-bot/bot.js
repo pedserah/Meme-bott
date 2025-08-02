@@ -803,6 +803,19 @@ bot.onText(/\/auto_name/, (msg) => {
     startAutoNameFlow(chatId, userId);
 });
 
+// Auto Rug Command - Automated conditional rugpull
+bot.onText(/\/auto_rug(?:\s+(.+))?/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const params = match[1];
+    startAutoRugFlow(chatId, params);
+});
+
+// Cancel Auto Rug Command
+bot.onText(/\/cancel_auto_rug/, (msg) => {
+    const chatId = msg.chat.id;
+    cancelAutoRug(chatId);
+});
+
 function startAutoBrandFlow(chatId, userId) {
     // Initialize auto-brand session
     botState.autoBrandSessions.set(userId, {
