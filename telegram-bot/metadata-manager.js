@@ -1,6 +1,8 @@
 const { NFTStorage, File, Blob } = require('nft.storage');
 const axios = require('axios');
 const OpenAI = require('openai');
+const fs = require('fs');
+const path = require('path');
 
 // Initialize NFT.Storage client
 const NFT_STORAGE_API_KEY = '7ce552b4.11e9175658bf48bca961d12383336670';
@@ -11,15 +13,22 @@ const openai = new OpenAI({
     apiKey: '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'
 });
 
+// Create tmp directory if it doesn't exist
+const tmpDir = path.join(__dirname, 'tmp');
+if (!fs.existsSync(tmpDir)) {
+    fs.mkdirSync(tmpDir, { recursive: true });
+}
+
 class MetadataManager {
     constructor() {
         this.storageClient = nftStorage;
+        this.maxRetries = 2;
     }
 
-    // Generate meme image using DALL·E 3
-    async generateMemeImage(tokenName, tokenDescription) {
+    // Generate meme image using DALL·E 3 with retry logic
+    async generateMemeImage(tokenName, tokenDescription, attempt = 1) {
         try {
-            console.log(`🎨 Generating meme image for "${tokenName}" with DALL·E 3...`);
+            console.log(`🎨 Generating meme image for "${tokenName}" (attempt ${attempt}/${this.maxRetries + 1})`);
 
             const prompt = `Create a fun cartoon-style meme coin logo for "${tokenName}".
 Description: ${tokenDescription || 'A fun meme cryptocurrency'}
@@ -33,7 +42,7 @@ Style Requirements:
 - Include subtle cryptocurrency elements if appropriate
 - Make it memorable and shareable
 - No text or words in the image
-- Square aspect ratio suitable for token logo`;
+- Simple and clean design suitable for small sizes`;
 
             console.log('📝 Sending image generation request to DALL·E 3...');
 
@@ -41,7 +50,7 @@ Style Requirements:
                 model: "dall-e-3",
                 prompt: prompt,
                 n: 1,
-                size: "1024x1024",
+                size: "1024x1024", // Generate at high res then we'll resize if needed
                 quality: "standard",
                 style: "vivid"
             });
@@ -52,22 +61,31 @@ Style Requirements:
             return {
                 imageUrl,
                 prompt,
-                success: true
+                success: true,
+                attempt
             };
 
         } catch (error) {
-            console.error('❌ Error generating meme image:', error);
+            console.error(`❌ Error generating meme image (attempt ${attempt}):`, error.message);
+            
+            if (attempt < this.maxRetries + 1) {
+                console.log(`🔄 Retrying image generation... (${attempt + 1}/${this.maxRetries + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                return this.generateMemeImage(tokenName, tokenDescription, attempt + 1);
+            }
+            
             return {
                 imageUrl: null,
                 prompt: null,
                 success: false,
-                error: error.message
+                error: error.message,
+                attempts: attempt
             };
         }
     }
 
-    // Download image from URL
-    async downloadImage(imageUrl) {
+    // Download and save image to temporary file
+    async downloadAndSaveImage(imageUrl, tokenSymbol) {
         try {
             console.log('⬇️ Downloading generated image...');
             
@@ -76,55 +94,86 @@ Style Requirements:
                 timeout: 30000
             });
 
-            console.log('✅ Image downloaded successfully');
-            return Buffer.from(response.data);
+            const fileName = `tmp_${tokenSymbol.toLowerCase()}_${Date.now()}.png`;
+            const filePath = path.join(tmpDir, fileName);
+            
+            fs.writeFileSync(filePath, Buffer.from(response.data));
+            
+            console.log('✅ Image saved to temporary file:', filePath);
+            return {
+                success: true,
+                filePath,
+                fileName,
+                buffer: Buffer.from(response.data)
+            };
         } catch (error) {
-            console.error('❌ Error downloading image:', error.message);
-            throw new Error(`Failed to download image: ${error.message}`);
+            console.error('❌ Error downloading/saving image:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                filePath: null,
+                fileName: null,
+                buffer: null
+            };
         }
     }
 
-    // Upload image to nft.storage
-    async uploadImageToNFTStorage(imageBuffer, fileName) {
+    // Upload image to nft.storage with retry logic
+    async uploadImageToNFTStorage(imageBuffer, fileName, attempt = 1) {
         try {
-            console.log('📤 Uploading image to nft.storage...');
+            console.log(`📤 Uploading image to nft.storage (attempt ${attempt}/${this.maxRetries + 1})...`);
 
             // Create a File object from the buffer
             const imageFile = new File([imageBuffer], fileName, { type: 'image/png' });
 
             // Upload to nft.storage
             const cid = await this.storageClient.storeBlob(imageFile);
-            const imageUri = `https://nftstorage.link/ipfs/${cid}`;
+            const ipfsUrl = `ipfs://${cid}`;
+            const httpUrl = `https://nftstorage.link/ipfs/${cid}`;
             
-            console.log('✅ Image uploaded to nft.storage:', imageUri);
+            console.log('✅ Image uploaded to nft.storage:');
+            console.log('   IPFS URL:', ipfsUrl);
+            console.log('   HTTP URL:', httpUrl);
+            
             return {
+                success: true,
                 cid,
-                imageUri,
-                success: true
+                ipfsUrl,
+                httpUrl,
+                attempt
             };
 
         } catch (error) {
-            console.error('❌ Error uploading image to nft.storage:', error);
+            console.error(`❌ Error uploading image to nft.storage (attempt ${attempt}):`, error.message);
+            
+            if (attempt < this.maxRetries + 1) {
+                console.log(`🔄 Retrying nft.storage upload... (${attempt + 1}/${this.maxRetries + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds before retry
+                return this.uploadImageToNFTStorage(imageBuffer, fileName, attempt + 1);
+            }
+            
             return {
-                cid: null,
-                imageUri: null,
                 success: false,
-                error: error.message
+                error: error.message,
+                attempts: attempt,
+                cid: null,
+                ipfsUrl: null,
+                httpUrl: null
             };
         }
     }
 
-    // Create and upload metadata JSON
-    async uploadMetadataToNFTStorage(tokenData, imageUri) {
+    // Create and upload metadata JSON with retry logic
+    async uploadMetadataToNFTStorage(tokenData, ipfsImageUrl, attempt = 1) {
         try {
-            console.log('📤 Creating and uploading metadata JSON to nft.storage...');
+            console.log(`📤 Creating and uploading metadata JSON (attempt ${attempt}/${this.maxRetries + 1})...`);
 
             // Create Metaplex-compatible metadata
             const metadata = {
                 name: tokenData.name,
                 symbol: tokenData.symbol,
                 description: tokenData.description || `${tokenData.name} - A meme cryptocurrency token`,
-                image: imageUri,
+                image: ipfsImageUrl, // Use IPFS URL format
                 attributes: [
                     {
                         trait_type: "Token Type",
@@ -147,7 +196,7 @@ Style Requirements:
                     category: "image",
                     files: [
                         {
-                            uri: imageUri,
+                            uri: ipfsImageUrl,
                             type: "image/png"
                         }
                     ],
@@ -165,114 +214,177 @@ Style Requirements:
                 }
             };
 
-            console.log('📋 Metadata structure:', JSON.stringify(metadata, null, 2));
+            console.log('📋 Metadata structure created');
 
             // Create JSON file
             const metadataJson = JSON.stringify(metadata, null, 2);
-            const metadataFile = new File([metadataJson], `${tokenData.symbol.toLowerCase()}-metadata.json`, {
+            const metadataFileName = `${tokenData.symbol.toLowerCase()}-metadata.json`;
+            const metadataFile = new File([metadataJson], metadataFileName, {
                 type: 'application/json'
             });
 
             // Upload metadata JSON to nft.storage
             const metadataCid = await this.storageClient.storeBlob(metadataFile);
-            const metadataUri = `https://nftstorage.link/ipfs/${metadataCid}`;
+            const metadataIpfsUrl = `ipfs://${metadataCid}`;
+            const metadataHttpUrl = `https://nftstorage.link/ipfs/${metadataCid}`;
 
-            console.log('✅ Metadata uploaded to nft.storage:', metadataUri);
+            console.log('✅ Metadata uploaded to nft.storage:');
+            console.log('   IPFS URL:', metadataIpfsUrl);
+            console.log('   HTTP URL:', metadataHttpUrl);
             
             return {
-                metadataUri,
+                success: true,
+                metadataIpfsUrl,
+                metadataHttpUrl,
                 metadataCid,
                 metadata,
-                success: true
+                attempt
             };
 
         } catch (error) {
-            console.error('❌ Error uploading metadata to nft.storage:', error);
-            return {
-                metadataUri: null,
-                metadataCid: null,
-                metadata: null,
-                success: false,
-                error: error.message
-            };
-        }
-    }
-
-    // Complete process: Generate image and upload everything
-    async createCompleteTokenMetadata(tokenData) {
-        try {
-            console.log('🚀 Starting complete token metadata creation process...');
-            console.log('🪙 Token data:', { 
-                name: tokenData.name, 
-                symbol: tokenData.symbol, 
-                description: tokenData.description 
-            });
-
-            // Step 1: Generate meme image with DALL·E 3
-            const imageGeneration = await this.generateMemeImage(tokenData.name, tokenData.description);
+            console.error(`❌ Error uploading metadata (attempt ${attempt}):`, error.message);
             
-            if (!imageGeneration.success) {
-                throw new Error(`Image generation failed: ${imageGeneration.error}`);
+            if (attempt < this.maxRetries + 1) {
+                console.log(`🔄 Retrying metadata upload... (${attempt + 1}/${this.maxRetries + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds before retry
+                return this.uploadMetadataToNFTStorage(tokenData, ipfsImageUrl, attempt + 1);
             }
-
-            // Step 2: Download the generated image
-            const imageBuffer = await this.downloadImage(imageGeneration.imageUrl);
-
-            // Step 3: Upload image to nft.storage
-            const fileName = `${tokenData.symbol.toLowerCase()}-logo.png`;
-            const imageUpload = await this.uploadImageToNFTStorage(imageBuffer, fileName);
             
-            if (!imageUpload.success) {
-                throw new Error(`Image upload failed: ${imageUpload.error}`);
-            }
-
-            // Step 4: Create and upload metadata JSON
-            const metadataUpload = await this.uploadMetadataToNFTStorage(tokenData, imageUpload.imageUri);
-            
-            if (!metadataUpload.success) {
-                throw new Error(`Metadata upload failed: ${metadataUpload.error}`);
-            }
-
-            const result = {
-                success: true,
-                generatedImageUrl: imageGeneration.imageUrl,
-                imageUri: imageUpload.imageUri,
-                imageCid: imageUpload.cid,
-                metadataUri: metadataUpload.metadataUri,
-                metadataCid: metadataUpload.metadataCid,
-                metadata: metadataUpload.metadata,
-                prompt: imageGeneration.prompt
-            };
-
-            console.log('🎉 Complete token metadata creation successful!');
-            console.log('📊 Final result:', {
-                imageUri: result.imageUri,
-                metadataUri: result.metadataUri
-            });
-
-            return result;
-
-        } catch (error) {
-            console.error('❌ Complete token metadata creation failed:', error);
             return {
                 success: false,
                 error: error.message,
-                generatedImageUrl: null,
-                imageUri: null,
-                imageCid: null,
-                metadataUri: null,
+                attempts: attempt,
+                metadataIpfsUrl: null,
+                metadataHttpUrl: null,
                 metadataCid: null,
                 metadata: null
             };
         }
     }
 
-    // Test nft.storage connection
-    async testConnection() {
+    // Complete process with proper error handling and retries
+    async createCompleteTokenMetadata(tokenData) {
+        const results = {
+            success: false,
+            error: null,
+            generatedImageUrl: null,
+            tempFilePath: null,
+            ipfsImageUrl: null,
+            httpImageUrl: null,
+            metadataIpfsUrl: null,
+            metadataHttpUrl: null,
+            metadata: null,
+            retryAttempts: {
+                imageGeneration: 0,
+                imageUpload: 0,
+                metadataUpload: 0
+            }
+        };
+
         try {
-            console.log('🔍 Testing nft.storage connection...');
+            console.log('🚀 Starting complete token metadata creation with retries...');
+            console.log('🪙 Token data:', { 
+                name: tokenData.name, 
+                symbol: tokenData.symbol, 
+                description: tokenData.description 
+            });
+
+            // Step 1: Generate meme image with DALL·E 3 (with retries)
+            const imageGeneration = await this.generateMemeImage(tokenData.name, tokenData.description);
+            results.retryAttempts.imageGeneration = imageGeneration.attempt || 1;
             
-            // Create a small test file
+            if (!imageGeneration.success) {
+                results.error = `Image generation failed after ${results.retryAttempts.imageGeneration} attempts: ${imageGeneration.error}`;
+                console.log('⚠️ Proceeding without image due to generation failure');
+                return results; // Return with failure but continue token creation
+            }
+
+            results.generatedImageUrl = imageGeneration.imageUrl;
+
+            // Step 2: Download and save image temporarily
+            const downloadResult = await this.downloadAndSaveImage(imageGeneration.imageUrl, tokenData.symbol);
+            
+            if (!downloadResult.success) {
+                results.error = `Image download failed: ${downloadResult.error}`;
+                console.log('⚠️ Proceeding without image due to download failure');
+                return results;
+            }
+
+            results.tempFilePath = downloadResult.filePath;
+
+            // Step 3: Upload image to nft.storage (with retries)
+            const imageUpload = await this.uploadImageToNFTStorage(downloadResult.buffer, downloadResult.fileName);
+            results.retryAttempts.imageUpload = imageUpload.attempt || 1;
+            
+            if (!imageUpload.success) {
+                results.error = `Image upload failed after ${results.retryAttempts.imageUpload} attempts: ${imageUpload.error}`;
+                console.log('⚠️ Proceeding without image due to upload failure');
+                this.cleanupTempFile(results.tempFilePath);
+                return results;
+            }
+
+            results.ipfsImageUrl = imageUpload.ipfsUrl;
+            results.httpImageUrl = imageUpload.httpUrl;
+
+            // Step 4: Create and upload metadata JSON (with retries)
+            const metadataUpload = await this.uploadMetadataToNFTStorage(tokenData, imageUpload.ipfsUrl);
+            results.retryAttempts.metadataUpload = metadataUpload.attempt || 1;
+            
+            if (!metadataUpload.success) {
+                results.error = `Metadata upload failed after ${results.retryAttempts.metadataUpload} attempts: ${metadataUpload.error}`;
+                console.log('⚠️ Proceeding without metadata due to upload failure');
+                this.cleanupTempFile(results.tempFilePath);
+                return results;
+            }
+
+            results.metadataIpfsUrl = metadataUpload.metadataIpfsUrl;
+            results.metadataHttpUrl = metadataUpload.metadataHttpUrl;
+            results.metadata = metadataUpload.metadata;
+            results.success = true;
+
+            console.log('🎉 Complete token metadata creation successful!');
+            console.log('📊 Final results:', {
+                ipfsImageUrl: results.ipfsImageUrl,
+                metadataIpfsUrl: results.metadataIpfsUrl,
+                retryAttempts: results.retryAttempts
+            });
+
+            // Cleanup temp file
+            this.cleanupTempFile(results.tempFilePath);
+
+            return results;
+
+        } catch (error) {
+            console.error('❌ Complete token metadata creation failed:', error);
+            results.error = error.message;
+            
+            // Cleanup temp file if it exists
+            if (results.tempFilePath) {
+                this.cleanupTempFile(results.tempFilePath);
+            }
+            
+            return results;
+        }
+    }
+
+    // Clean up temporary files
+    cleanupTempFile(filePath) {
+        if (filePath && fs.existsSync(filePath)) {
+            try {
+                fs.unlinkSync(filePath);
+                console.log('🧹 Cleaned up temporary file:', filePath);
+            } catch (error) {
+                console.error('⚠️ Failed to cleanup temp file:', error.message);
+            }
+        }
+    }
+
+    // Test connections
+    async testConnections() {
+        try {
+            console.log('🔍 Testing API connections...');
+            
+            // Test nft.storage connection
             const testData = JSON.stringify({ test: true, timestamp: new Date().toISOString() });
             const testFile = new File([testData], 'test.json', { type: 'application/json' });
             
@@ -282,10 +394,19 @@ Style Requirements:
             console.log('✅ nft.storage connection successful');
             console.log('🔗 Test file URI:', testUri);
             
-            return { success: true, testUri, cid };
+            return { 
+                success: true, 
+                nftStorage: true,
+                testUri, 
+                cid 
+            };
         } catch (error) {
-            console.error('❌ nft.storage connection failed:', error);
-            return { success: false, error: error.message };
+            console.error('❌ API connections test failed:', error);
+            return { 
+                success: false, 
+                nftStorage: false,
+                error: error.message 
+            };
         }
     }
 }
