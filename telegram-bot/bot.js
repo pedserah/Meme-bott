@@ -1595,8 +1595,139 @@ Choose your next step:
             bot.sendMessage(chatId, `❌ Token creation failed: ${error.message}\n\nPlease try again with /launch`);
             botState.userSessions.delete(userId);
         }
+    } else if (data === 'auto_brand') {
+        startAutoBrandFlow(chatId, userId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_name') {
+        startAutoNameFlow(chatId, userId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_brand_no_theme') {
+        // Start auto-brand flow with no theme
+        handleAutoBrandTheme(chatId, userId, '', 'brand');
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'auto_name_no_theme') {
+        // Start auto-name flow with no theme
+        handleAutoBrandTheme(chatId, userId, '', 'name');
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_auto_brand') {
+        botState.autoBrandSessions.delete(userId);
+        bot.sendMessage(chatId, '❌ AI generation cancelled.');
+        bot.answerCallbackQuery(callbackQuery.id);
     }
 });
+
+// Handle auto-brand theme input
+async function handleAutoBrandTheme(chatId, userId, theme, type) {
+    const session = botState.autoBrandSessions.get(userId);
+    if (!session) return;
+
+    session.data.theme = theme;
+    session.data.nameOnly = (type === 'name');
+    
+    if (type === 'name') {
+        // For auto-name, skip to trending question
+        session.step = 'waiting_for_trending';
+        
+        const message = `
+🎯 *Step 2/2:* Do you want to include trending data analysis?
+
+**Yes:** AI will analyze Google Trends + trending coins for context
+**No:** Pure creative AI generation without trends
+
+${theme ? `🎨 **Theme:** ${theme}` : '🎲 **Pure AI Creativity**'}
+        `;
+
+        bot.sendMessage(chatId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🔥 Yes, Use Trending Data', callback_data: 'use_trending_yes' },
+                        { text: '🎨 No, Pure AI', callback_data: 'use_trending_no' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                    ]
+                ]
+            }
+        });
+    } else {
+        // For auto-brand, ask for trending preference
+        session.step = 'waiting_for_trending';
+        
+        const message = `
+🤖 *Step 2/3:* Do you want to include trending data analysis?
+
+**Yes:** AI will analyze Google Trends + trending coins for context  
+**No:** Pure creative AI generation without trends
+
+${theme ? `🎨 **Theme:** ${theme}` : '🎲 **Pure AI Creativity**'}
+        `;
+
+        bot.sendMessage(chatId, message, {
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🔥 Yes, Use Trending Data', callback_data: 'use_trending_yes' },
+                        { text: '🎨 No, Pure AI', callback_data: 'use_trending_no' }
+                    ],
+                    [
+                        { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                    ]
+                ]
+            }
+        });
+    }
+
+    botState.autoBrandSessions.set(userId, session);
+}
+
+// Handle message input for auto-brand flows
+bot.on('message', (msg) => {
+    const userId = msg.from.id;
+    const chatId = msg.chat.id;
+    const text = msg.text;
+
+    // Skip if message starts with / (command)
+    if (text && text.startsWith('/')) {
+        return;
+    }
+
+    // Check if user is in token creation flow
+    const session = botState.userSessions.get(userId);
+    if (session) {
+        handleTokenCreationInput(userId, chatId, text, session);
+        return;
+    }
+
+    // Check if user is in auto-brand flow
+    const autoBrandSession = botState.autoBrandSessions.get(userId);
+    if (autoBrandSession) {
+        handleAutoBrandInput(userId, chatId, text, autoBrandSession);
+        return;
+    }
+});
+
+async function handleAutoBrandInput(userId, chatId, text, session) {
+    try {
+        switch (session.step) {
+            case 'waiting_for_theme':
+                const theme = text.trim().toLowerCase() === 'none' ? '' : text.trim();
+                handleAutoBrandTheme(chatId, userId, theme, session.data.nameOnly ? 'name' : 'brand');
+                break;
+            
+            case 'waiting_for_name_theme':
+                const nameTheme = text.trim().toLowerCase() === 'none' ? '' : text.trim();
+                handleAutoBrandTheme(chatId, userId, nameTheme, 'name');
+                break;
+        }
+    } catch (error) {
+        console.error('❌ Error handling auto-brand input:', error);
+        bot.sendMessage(chatId, `❌ Something went wrong. Please try again with /${session.data.nameOnly ? 'auto_name' : 'auto_brand'}`);
+        botState.autoBrandSessions.delete(userId);
+    }
+}
 
 // Test Solana connection
 async function testSolanaConnection() {
