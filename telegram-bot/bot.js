@@ -182,8 +182,8 @@ let statusMessage = `
 🔴 Auto-Rug: ${botState.autoRugMonitor.active ? '✅ Active' : '❌ Inactive'}
 ⚡ Mode: Real DEX Trading + AI Branding + Auto-Rug (Step 7+)
 
-<b>Current Step:</b> Step 7+ Complete - AI + Auto-Rugpull
-<b>Features:</b> GPT-4 naming, DALL·E 3 logos, automated conditional rugpulls
+<b>Current Step:</b> Step 7+ Complete - AI + Auto-Rugpull + Fal.ai
+<b>Features:</b> Fal.ai imaging, creative naming, automated conditional rugpulls
     `;
 
     if (createdTokens.length > 0) {
