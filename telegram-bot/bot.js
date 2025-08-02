@@ -216,6 +216,20 @@ let statusMessage = `
         });
     }
     
+    // Add auto-rug monitoring status
+    if (botState.autoRugMonitor.active) {
+        const tokenInfo = tokenManager.getToken(botState.autoRugMonitor.tokenMint);
+        const elapsedMinutes = Math.floor((new Date() - botState.autoRugMonitor.startTime) / 60000);
+        const conditions = botState.autoRugMonitor.conditions;
+        
+        statusMessage += `\n\n🔴 <b>Auto-Rugpull Monitor:</b>\n`;
+        statusMessage += `   🪙 Token: <b>${tokenInfo?.name || 'Unknown'}</b>\n`;
+        statusMessage += `   ⏰ Running: ${elapsedMinutes}/${conditions.timeMinutes} minutes\n`;
+        statusMessage += `   📊 Volume Target: ${conditions.volume} trades\n`;
+        statusMessage += `   📉 Drop Target: ${conditions.dropPercent}% price drop\n`;
+        statusMessage += `   ✅ <b>Monitoring Active</b> - Checking every 60s\n`;
+    }
+    
     bot.sendMessage(chatId, statusMessage, { parse_mode: 'HTML' });
 }
 
