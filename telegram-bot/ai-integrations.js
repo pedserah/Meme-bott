@@ -97,10 +97,13 @@ class AIIntegrations {
     async generateMemeCoinConcept(userTheme = '', includeTrending = false) {
         try {
             console.log('🤖 Generating meme coin concept with GPT-4...');
+            console.log('📋 User theme:', userTheme || 'None');
+            console.log('🔥 Include trending:', includeTrending);
 
             // Get trending data if requested
             let trendingContext = '';
             if (includeTrending) {
+                console.log('📈 Fetching trending data...');
                 await this.updateTrendingData();
                 const trends = this.trendingData.googleTrends.slice(0, 5);
                 const coins = this.trendingData.pumpFunCoins.slice(0, 5);
@@ -109,35 +112,54 @@ class AIIntegrations {
 Current trending topics: ${trends.map(t => t.keyword).join(', ')}
 Trending meme coins: ${coins.map(c => `${c.name} (${c.ticker})`).join(', ')}
 `;
+                console.log('🔥 Trending context:', trendingContext);
             }
 
-            const prompt = `You are a creative meme coin generator. Create a funny, viral-worthy meme coin concept.
+            // Create a more dynamic prompt
+            const timestamp = Date.now();
+            const randomness = Math.floor(Math.random() * 1000);
+            
+            const prompt = `You are a creative meme coin generator (ID: ${timestamp}-${randomness}). Create a unique, funny, viral-worthy meme coin concept.
 
 ${trendingContext}
 
-User theme/keyword: ${userTheme || 'None - be creative!'}
+User theme/keyword: ${userTheme || 'None - be completely creative and unique!'}
+
+IMPORTANT: Create a completely UNIQUE concept each time. Do not repeat previous concepts.
 
 Generate a meme coin concept with these requirements:
-1. Name: Catchy, memorable, meme-worthy (max 32 characters)
-2. Ticker: 3-6 characters, ALL CAPS, related to the name
+1. Name: Catchy, memorable, meme-worthy, UNIQUE (max 32 characters)
+2. Ticker: 3-6 characters, ALL CAPS, related to the name, UNIQUE
 3. Description: Funny tagline/description (max 200 characters) that captures the meme essence
 
 Make it trendy, humorous, and likely to go viral. Consider current internet culture and memes.
-If trending data is provided, subtly incorporate those themes.
+${userTheme ? `Focus on the theme: ${userTheme}` : 'Be completely creative and original!'}
+${includeTrending ? 'Incorporate trending themes subtly.' : 'Focus on creativity and humor.'}
+
+Be creative with these themes:
+- Animals (cats, dogs, hamsters, penguins)
+- Space/Moon themes (rocket, mars, satellite) 
+- Food memes (pizza, taco, burger)
+- Internet culture (chad, karen, based)
+- Emotions (happy, sad, angry, excited)
+- Actions (hodl, yeet, vibe, chill)
 
 Respond in this exact JSON format:
 {
   "name": "Generated coin name",
-  "ticker": "TICKER",
+  "ticker": "TICKER", 
   "description": "Funny description that captures the meme essence"
 }`;
 
+            console.log('📝 Sending prompt to GPT-4...');
+            console.log('🔑 API Key status:', this.apiKeyStatus());
+            
             const completion = await openai.chat.completions.create({
                 model: "gpt-4",
                 messages: [
                     {
                         role: "system",
-                        content: "You are a creative meme coin concept generator. Always respond with valid JSON only."
+                        content: "You are a creative meme coin concept generator. Always respond with valid JSON only. Be unique and creative each time."
                     },
                     {
                         role: "user",
@@ -145,33 +167,97 @@ Respond in this exact JSON format:
                     }
                 ],
                 max_tokens: 500,
-                temperature: 0.9
+                temperature: 0.9, // High creativity
+                top_p: 1.0,
+                frequency_penalty: 0.5, // Reduce repetition
+                presence_penalty: 0.3   // Encourage new topics
             });
 
-            const response = completion.choices[0].message.content;
-            console.log('🤖 GPT-4 response:', response);
+            const response = completion.choices[0].message.content.trim();
+            console.log('🤖 GPT-4 raw response:', response);
+
+            // Clean up the response if it has markdown formatting
+            const cleanResponse = response.replace(/```json\n?/, '').replace(/\n?```/, '').trim();
+            console.log('🧽 Cleaned response:', cleanResponse);
 
             // Parse JSON response
-            const concept = JSON.parse(response);
+            const concept = JSON.parse(cleanResponse);
             
             // Validate required fields
             if (!concept.name || !concept.ticker || !concept.description) {
-                throw new Error('Invalid GPT-4 response format');
+                throw new Error(`Invalid GPT-4 response format. Missing fields. Got: ${JSON.stringify(concept)}`);
+            }
+
+            // Additional validation
+            if (concept.name.length > 32) {
+                concept.name = concept.name.substring(0, 32);
+            }
+            if (concept.ticker.length > 10) {
+                concept.ticker = concept.ticker.substring(0, 10);
+            }
+            if (concept.description.length > 200) {
+                concept.description = concept.description.substring(0, 200);
             }
 
             console.log('✅ Generated meme coin concept:', concept);
             return concept;
 
         } catch (error) {
-            console.error('❌ Error generating meme coin concept:', error.message);
+            console.error('❌ Error generating meme coin concept:', error);
+            console.error('❌ Full error details:', {
+                name: error.name,
+                message: error.message,
+                code: error.code,
+                status: error.status,
+                stack: error.stack
+            });
             
-            // Fallback concept
-            return {
-                name: "MoonDoge",
-                ticker: "MOONDOGE", 
-                description: "When Doge meets the moon - the ultimate space meme coin! 🚀🐕"
-            };
+            // Create randomized fallback concepts instead of always using the same one
+            const fallbackConcepts = [
+                {
+                    name: `PizzaCat${Math.floor(Math.random() * 100)}`,
+                    ticker: "PIZZACAT",
+                    description: "The purrfect slice of meme magic! 🍕🐱"
+                },
+                {
+                    name: `RocketHamster${Math.floor(Math.random() * 100)}`,
+                    ticker: "HAMSTER",
+                    description: "Tiny hamster with big moon dreams! 🐹🚀"
+                },
+                {
+                    name: `ChillPenguin${Math.floor(Math.random() * 100)}`,
+                    ticker: "CHILL",
+                    description: "The coolest bird in crypto! 🐧❄️"
+                },
+                {
+                    name: `TacoVibes${Math.floor(Math.random() * 100)}`,
+                    ticker: "TACO",
+                    description: "Spicy memes and good vibes! 🌮✨"
+                },
+                {
+                    name: `LazyLlama${Math.floor(Math.random() * 100)}`,
+                    ticker: "LLAMA",
+                    description: "Too lazy to rugpull, too comfy to sell! 🦙😴"
+                }
+            ];
+            
+            const randomFallback = fallbackConcepts[Math.floor(Math.random() * fallbackConcepts.length)];
+            console.log('🎲 Using random fallback concept:', randomFallback);
+            
+            return randomFallback;
         }
+    }
+
+    // Check API key status
+    apiKeyStatus() {
+        const key = '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';
+        if (!key || key.startsWith('your_')) {
+            return 'Missing or placeholder API key';
+        }
+        if (key.length < 20) {
+            return 'API key too short';
+        }
+        return `Valid format (${key.length} chars)`;
     }
 
     // Generate meme coin logo using DALL·E 3
