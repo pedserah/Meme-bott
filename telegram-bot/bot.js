@@ -1882,7 +1882,7 @@ bot.on('message', (msg) => {
         return;
     }
 
-    // Check if user is in token creation flow
+    // Check if user is in token creation flow FIRST
     const session = botState.userSessions.get(userId);
     if (session) {
         handleTokenCreationInput(userId, chatId, text, session);
@@ -1892,6 +1892,9 @@ bot.on('message', (msg) => {
     // Check if user is in auto-brand flow
     const autoBrandSession = botState.autoBrandSessions.get(userId);
     if (autoBrandSession) {
+        console.log('📝 Processing auto-brand message input for user:', userId);
+        console.log('📝 Current session step:', autoBrandSession.step);
+        console.log('📝 Message text:', text);
         handleAutoBrandInput(userId, chatId, text, autoBrandSession);
         return;
     }
@@ -1899,20 +1902,28 @@ bot.on('message', (msg) => {
 
 async function handleAutoBrandInput(userId, chatId, text, session) {
     try {
+        console.log('🔄 handleAutoBrandInput called - step:', session.step);
+        console.log('🔄 Input text:', text);
+        
         switch (session.step) {
             case 'waiting_for_theme':
                 const theme = text.trim().toLowerCase() === 'none' ? '' : text.trim();
+                console.log('🎨 Processing theme:', theme);
                 handleAutoBrandTheme(chatId, userId, theme, session.data.nameOnly ? 'name' : 'brand');
                 break;
             
             case 'waiting_for_name_theme':
                 const nameTheme = text.trim().toLowerCase() === 'none' ? '' : text.trim();
+                console.log('🎯 Processing name theme:', nameTheme);
                 handleAutoBrandTheme(chatId, userId, nameTheme, 'name');
                 break;
+                
+            default:
+                console.log('⚠️ Unhandled auto-brand step:', session.step);
         }
     } catch (error) {
         console.error('❌ Error handling auto-brand input:', error);
-        bot.sendMessage(chatId, `❌ Something went wrong. Please try again with /${session.data.nameOnly ? 'auto_name' : 'auto_brand'}`);
+        bot.sendMessage(chatId, `❌ Something went wrong. Please try again with /${session.data?.nameOnly ? 'auto_name' : 'auto_brand'}`);
         botState.autoBrandSessions.delete(userId);
     }
 }
