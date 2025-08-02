@@ -22,52 +22,114 @@ class MetadataManager {
         this.maxRetries = 2;
     }
 
-    // Generate meme image using DALL·E 3 with retry logic
+    // Generate AI image using Fal.ai with retry logic
+    async generate_ai_image_with_fal(prompt, attempt = 1) {
+        try {
+            console.log(`🎨 Generating image with Fal.ai (attempt ${attempt}/${this.maxRetries + 1})`);
+            console.log(`📝 Prompt: ${prompt}`);
+
+            const response = await axios.post('https://api.fal.ai/v1/run/fal-ai/flux/dev', {
+                prompt: `High quality, vibrant meme coin logo. Cartoon style, fun, clean design: ${prompt}`,
+                image_size: "square",
+                num_inference_steps: 30,
+                guidance_scale: 7.5
+            }, {
+                headers: {
+                    'Authorization': `Key ${FAL_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000 // 60 second timeout
+            });
+
+            console.log('✅ Fal.ai response received');
+
+            // Extract base64 image from response
+            const base64Image = response.data.images[0].base64;
+            
+            // Generate unique filename
+            const timestamp = Date.now();
+            const filename = `fal_generated_${timestamp}.png`;
+            const filepath = path.join(tmpDir, filename);
+
+            // Decode base64 and save to file
+            const imageBuffer = Buffer.from(base64Image, 'base64');
+            fs.writeFileSync(filepath, imageBuffer);
+
+            console.log('✅ Fal.ai image saved to:', filepath);
+
+            return {
+                success: true,
+                filepath: filepath,
+                filename: filename,
+                buffer: imageBuffer,
+                attempt: attempt
+            };
+
+        } catch (error) {
+            console.error(`❌ Error generating image with Fal.ai (attempt ${attempt}):`, error.message);
+            
+            if (attempt < this.maxRetries + 1) {
+                console.log(`🔄 Retrying Fal.ai generation... (${attempt + 1}/${this.maxRetries + 1})`);
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                return this.generate_ai_image_with_fal(prompt, attempt + 1);
+            }
+            
+            return {
+                success: false,
+                error: error.message,
+                attempts: attempt,
+                filepath: null,
+                filename: null,
+                buffer: null
+            };
+        }
+    }
+
+    // Generate meme image using Fal.ai with retry logic
     async generateMemeImage(tokenName, tokenDescription, attempt = 1) {
         try {
             console.log(`🎨 Generating meme image for "${tokenName}" (attempt ${attempt}/${this.maxRetries + 1})`);
 
-            const prompt = `Create a fun cartoon-style meme coin logo for "${tokenName}".
-Description: ${tokenDescription || 'A fun meme cryptocurrency'}
+            const prompt = `${tokenName}. ${tokenDescription || 'A fun meme cryptocurrency'}. Circular logo design perfect for a cryptocurrency. Bold, eye-catching colors with high contrast. Professional but playful appearance. No text or words in the image.`;
 
-Style Requirements:
-- Cartoon style, colorful and vibrant
-- Circular logo design perfect for a cryptocurrency
-- Fun, meme-worthy, and viral potential
-- Bold, eye-catching colors with high contrast
-- Professional but playful appearance
-- Include subtle cryptocurrency elements if appropriate
-- Make it memorable and shareable
-- No text or words in the image
-- Simple and clean design suitable for small sizes`;
+            // Use Fal.ai to generate the image
+            const falResult = await this.generate_ai_image_with_fal(prompt, attempt);
+            
+            if (!falResult.success) {
+                if (attempt < this.maxRetries + 1) {
+                    console.log(`🔄 Retrying image generation... (${attempt + 1}/${this.maxRetries + 1})`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    return this.generateMemeImage(tokenName, tokenDescription, attempt + 1);
+                }
+                
+                return {
+                    imageUrl: null,
+                    prompt: prompt,
+                    success: false,
+                    error: falResult.error,
+                    attempts: attempt
+                };
+            }
 
-            console.log('📝 Sending image generation request to DALL·E 3...');
-
-            const response = await openai.images.generate({
-                model: "dall-e-3",
-                prompt: prompt,
-                n: 1,
-                size: "1024x1024", // Generate at high res then we'll resize if needed
-                quality: "standard",
-                style: "vivid"
-            });
-
-            const imageUrl = response.data[0].url;
-            console.log('✅ DALL·E 3 generated image:', imageUrl);
+            // Create a mock imageUrl for compatibility (we'll use the local file)
+            const mockImageUrl = `file://${falResult.filepath}`;
 
             return {
-                imageUrl,
-                prompt,
+                imageUrl: mockImageUrl,
+                filepath: falResult.filepath,
+                filename: falResult.filename,
+                buffer: falResult.buffer,
+                prompt: prompt,
                 success: true,
-                attempt
+                attempt: attempt
             };
 
         } catch (error) {
-            console.error(`❌ Error generating meme image (attempt ${attempt}):`, error.message);
+            console.error(`❌ Error in generateMemeImage (attempt ${attempt}):`, error.message);
             
             if (attempt < this.maxRetries + 1) {
                 console.log(`🔄 Retrying image generation... (${attempt + 1}/${this.maxRetries + 1})`);
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+                await new Promise(resolve => setTimeout(resolve, 2000));
                 return this.generateMemeImage(tokenName, tokenDescription, attempt + 1);
             }
             
