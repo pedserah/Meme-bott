@@ -55,6 +55,8 @@ Available Commands:
 💰 /wallets - Show wallet balances
 🪂 /airdrop \\[wallet_number\\] - Request devnet SOL
 🚀 /launch - Launch new meme coin with metadata ✅ ENHANCED
+🤖 /auto_brand - AI-powered brand generation ✅ NEW
+🎯 /auto_name - AI-powered name generation ✅ NEW
 🌱 /seed_wallets - Distribute tokens to trading wallets ✅ NEW
 🏊 /create_pool - Create Raydium pool ✅ NEW
 📈 /start_trading - Start automated trading ✅ REAL SWAPS
@@ -62,8 +64,8 @@ Available Commands:
 🔴 /rugpull - Complete rugpull operation ✅ NEW
 📊 /status - Show current operations
 
-⚡ *Step 6 Complete:* Enhanced metadata & rich launch flow!
-🎯 *Features:* Token descriptions, images, guided workflow
+⚡ *Step 7 Complete:* AI-powered auto branding with GPT-4 & DALL·E 3!
+🎯 *Features:* Auto naming, logo generation, trending analysis
     `;
     
     bot.sendMessage(chatId, welcomeMessage, { 
