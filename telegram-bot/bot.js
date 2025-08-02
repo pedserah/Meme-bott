@@ -1779,7 +1779,6 @@ async function launchAIConcept(chatId, userId, session) {
         botState.autoBrandSessions.delete(userId);
     }
 }
-});
 
 // Handle message input for auto-brand flows (updated version)
 bot.on('message', (msg) => {
