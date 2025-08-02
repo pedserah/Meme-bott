@@ -1710,11 +1710,20 @@ ${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI
         }
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data.startsWith('launch_ai_concept_')) {
+        console.log('🚀 Launching AI concept for user:', userId);
+        console.log('📝 All sessions:', Array.from(botState.autoBrandSessions.keys()));
+        
         const session = botState.autoBrandSessions.get(userId);
+        console.log('🔍 Found session:', !!session);
+        console.log('🎯 Has concept:', session ? !!session.generatedConcept : false);
+        
         if (session && session.generatedConcept) {
+            console.log('✅ Launching AI concept:', session.generatedConcept.name);
             // Launch token with AI-generated concept
             await launchAIConcept(chatId, userId, session);
         } else {
+            console.log('❌ Session data missing - userId:', userId);
+            console.log('❌ Session content:', session);
             bot.sendMessage(chatId, '❌ AI concept not found. Please generate a new one.');
         }
         bot.answerCallbackQuery(callbackQuery.id);
