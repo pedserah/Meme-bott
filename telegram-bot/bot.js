@@ -2330,7 +2330,23 @@ async function launchAIConcept(chatId, userId, session) {
 🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
         `;
 
-        bot.sendMessage(chatId, tokenMessage, { 
+        const tokenMessage = `
+🎉 *AI Token Created Successfully!*
+
+📛 **Name:** ${tokenInfo.name}
+🏷️ **Symbol:** ${tokenInfo.symbol}
+🪙 **Supply:** ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol}
+📝 **Description:** ${tokenInfo.description || 'None'}
+🖼️ **Image:** ${tokenInfo.imageUri ? 'AI-Generated Logo on IPFS' : 'None'}
+
+🌐 **Network:** Solana Devnet
+💰 **Minted to:** Wallet 1
+⚡ **AI-Powered:** GPT-4 + DALL·E 3 Enhanced
+
+🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
+        `;
+
+        await bot.sendMessage(chatId, tokenMessage, { 
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
@@ -2345,6 +2361,19 @@ async function launchAIConcept(chatId, userId, session) {
                 ]
             }
         });
+
+        // Send generated image if available
+        if (tokenInfo.metadataResult && tokenInfo.metadataResult.success && tokenInfo.generatedImageUrl) {
+            try {
+                console.log('📸 Sending AI-generated token image...');
+                await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
+                    caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 Stored on IPFS: ${tokenInfo.imageUri}`,
+                    parse_mode: 'Markdown'
+                });
+            } catch (imageError) {
+                console.error('❌ Error sending AI-generated image:', imageError);
+            }
+        }
 
         // Clean up session
         botState.autoBrandSessions.delete(userId);
