@@ -44,8 +44,8 @@ class TokenManager {
 
             console.log(`💰 Using wallet 1 as mint authority: ${mintAuthority.publicKey}`);
 
-            // Step 1: Create complete metadata with DALL·E generated image
-            console.log('🎨 Starting enhanced metadata creation...');
+            // Step 1: Create complete metadata with DALL·E generated image + IPFS
+            console.log('🎨 Starting enhanced metadata creation with retries...');
             const metadataResult = await this.metadataManager.createCompleteTokenMetadata({
                 name: tokenName,
                 symbol: ticker, 
@@ -54,8 +54,17 @@ class TokenManager {
                 creator: mintAuthority.publicKey.toString()
             });
 
-            if (!metadataResult.success) {
-                console.warn('⚠️ Enhanced metadata creation failed, proceeding with basic token:', metadataResult.error);
+            let finalImageUrl = imageUrl || '';
+            let finalMetadataUri = null;
+
+            if (metadataResult.success) {
+                console.log('✅ Enhanced metadata creation successful!');
+                console.log(`📊 Retry attempts: Image(${metadataResult.retryAttempts.imageGeneration}), Upload(${metadataResult.retryAttempts.imageUpload}), Metadata(${metadataResult.retryAttempts.metadataUpload})`);
+                finalImageUrl = metadataResult.httpImageUrl;
+                finalMetadataUri = metadataResult.metadataIpfsUrl;
+            } else {
+                console.warn('⚠️ Enhanced metadata creation failed:', metadataResult.error);
+                console.log('📊 Proceeding with basic token creation');
             }
 
             // Step 2: Create the mint
@@ -99,7 +108,7 @@ class TokenManager {
 
             // Step 5: Apply Metaplex metadata if available
             let metaplexResult = null;
-            if (metadataResult.success && metadataResult.metadataUri) {
+            if (finalMetadataUri) {
                 try {
                     console.log('📝 Applying Metaplex metadata on-chain...');
                     metaplexResult = await this.applyMetaplexMetadata(
@@ -107,7 +116,7 @@ class TokenManager {
                         mintAuthority.keypair,
                         tokenName,
                         ticker,
-                        metadataResult.metadataUri
+                        finalMetadataUri
                     );
                     console.log('✅ Metaplex metadata applied successfully');
                 } catch (metaplexError) {
@@ -115,7 +124,7 @@ class TokenManager {
                 }
             }
 
-            // Store token information
+            // Store token information with enhanced metadata
             const tokenInfo = {
                 name: tokenName,
                 symbol: ticker,
@@ -123,9 +132,12 @@ class TokenManager {
                 totalSupply: totalSupply,
                 decimals: 9,
                 description: description || '',
-                imageUrl: metadataResult.success ? metadataResult.imageUri : (imageUrl || ''),
+                imageUrl: finalImageUrl,
                 generatedImageUrl: metadataResult.success ? metadataResult.generatedImageUrl : null,
-                metadataUri: metadataResult.success ? metadataResult.metadataUri : null,
+                ipfsImageUrl: metadataResult.success ? metadataResult.ipfsImageUrl : null,
+                httpImageUrl: metadataResult.success ? metadataResult.httpImageUrl : null,
+                metadataIpfsUrl: metadataResult.success ? metadataResult.metadataIpfsUrl : null,
+                metadataHttpUrl: metadataResult.success ? metadataResult.metadataHttpUrl : null,
                 mintAuthority: mintAuthority.publicKey,
                 tokenAccount: tokenAccount.address.toString(),
                 mintSignature: mintSignature,
@@ -137,7 +149,17 @@ class TokenManager {
 
             this.createdTokens.set(mint.toString(), tokenInfo);
 
-            console.log('🎉 Enhanced token creation complete!');
+            // Log summary
+            if (metadataResult.success) {
+                console.log('🎉 Enhanced token creation complete with full metadata!');
+                console.log(`📸 Generated image: ${metadataResult.generatedImageUrl ? 'Yes' : 'No'}`);
+                console.log(`🌐 IPFS image: ${metadataResult.ipfsImageUrl || 'None'}`);
+                console.log(`📋 IPFS metadata: ${metadataResult.metadataIpfsUrl || 'None'}`);
+            } else {
+                console.log('🎉 Token creation complete with basic metadata');
+                console.log(`❌ Image generation failed after retries: ${metadataResult.error}`);
+            }
+
             return tokenInfo;
 
         } catch (error) {
