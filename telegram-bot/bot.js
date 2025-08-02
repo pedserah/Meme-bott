@@ -77,6 +77,10 @@ Available Commands:
                     { text: '🚀 Launch Coin', callback_data: 'launch_token' }
                 ],
                 [
+                    { text: '🤖 Auto Brand', callback_data: 'auto_brand' },
+                    { text: '🎯 Auto Name', callback_data: 'auto_name' }
+                ],
+                [
                     { text: '🌱 Seed Wallets', callback_data: 'seed_wallets' },
                     { text: '🏊 Create Pool', callback_data: 'create_pool' }
                 ],
