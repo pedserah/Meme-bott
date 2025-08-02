@@ -143,10 +143,27 @@ class MetadataManager {
         }
     }
 
-    // Download and save image to temporary file
+    // Download and save image to temporary file (modified for Fal.ai)
     async downloadAndSaveImage(imageUrl, tokenSymbol) {
         try {
-            console.log('⬇️ Downloading generated image...');
+            // For Fal.ai, we already have the image saved locally
+            if (imageUrl && imageUrl.startsWith('file://')) {
+                const filePath = imageUrl.replace('file://', '');
+                if (fs.existsSync(filePath)) {
+                    console.log('✅ Using existing Fal.ai generated file:', filePath);
+                    const buffer = fs.readFileSync(filePath);
+                    const fileName = path.basename(filePath);
+                    return {
+                        success: true,
+                        filePath: filePath,
+                        fileName: fileName,
+                        buffer: buffer
+                    };
+                }
+            }
+
+            // Fallback for URL-based images (shouldn't happen with Fal.ai)
+            console.log('⬇️ Downloading image from URL...');
             
             const response = await axios.get(imageUrl, {
                 responseType: 'arraybuffer',
