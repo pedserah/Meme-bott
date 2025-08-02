@@ -257,51 +257,46 @@ Respond in this exact JSON format:
         return `Valid format (${key.length} chars)`;
     }
 
-    // Generate meme coin logo using DALL·E 3
+    // Generate meme coin logo using Fal.ai
     async generateMemeCoinLogo(coinName, coinDescription, imageStyle = 'cartoon') {
         try {
-            console.log(`🎨 Generating ${imageStyle} logo for "${coinName}" with DALL·E 3...`);
-            console.log('🔑 API Key status:', this.apiKeyStatus());
+            console.log(`🎨 Generating ${imageStyle} logo for "${coinName}" with Fal.ai...`);
 
             const stylePrompt = imageStyle === '3D' 
                 ? '3D rendered, modern, sleek, high-quality 3D graphics'
                 : 'cartoon style, colorful, fun, animated look';
 
-            const prompt = `Create a meme coin logo for "${coinName}". 
-Description: ${coinDescription}
+            const prompt = `High quality, vibrant meme coin logo. ${stylePrompt}. Circular logo design for "${coinName}". Description: ${coinDescription}. Bold, eye-catching colors, professional but fun and meme-worthy, viral and memorable, high contrast and clear visibility, no text or words in the image`;
 
-Style: ${stylePrompt}
-Requirements:
-- Circular logo design perfect for a cryptocurrency
-- Bold, eye-catching colors
-- Professional but fun and meme-worthy
-- Include subtle cryptocurrency/blockchain elements
-- Make it viral and memorable
-- High contrast and clear visibility
-- No text or words in the image`;
-
-            console.log('📝 Sending image prompt to DALL·E 3...');
+            console.log('📝 Sending image generation request to Fal.ai...');
             console.log('🎨 Image style:', imageStyle);
 
-            const response = await openai.images.generate({
-                model: "dall-e-3",
+            const response = await axios.post('https://api.fal.ai/v1/run/fal-ai/flux/dev', {
                 prompt: prompt,
-                n: 1,
-                size: "1024x1024",
-                quality: "standard",
-                style: "vivid"
+                image_size: "square",
+                num_inference_steps: 30,
+                guidance_scale: 7.5
+            }, {
+                headers: {
+                    'Authorization': `Key ${FAL_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 60000
             });
 
-            const imageUrl = response.data[0].url;
-            console.log('✅ Generated logo image:', imageUrl);
+            // For compatibility with existing code, we'll return a mock URL
+            // The actual image will be handled by the metadata manager
+            const mockImageUrl = 'fal-ai://generated-image';
+            console.log('✅ Generated logo image with Fal.ai');
 
             return {
-                imageUrl,
-                prompt: prompt
+                imageUrl: mockImageUrl,
+                prompt: prompt,
+                falResponse: response.data
             };
 
         } catch (error) {
-            console.error('❌ Error generating logo with DALL·E 3:', error);
+            console.error('❌ Error generating logo with Fal.ai:', error);
             console.error('❌ Full image generation error:', {
                 name: error.name,
                 message: error.message,
