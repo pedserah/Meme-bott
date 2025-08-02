@@ -101,7 +101,11 @@ Available Commands:
                 ],
                 [
                     { text: '🔴 Rugpull', callback_data: 'rugpull' },
-                    { text: '📊 Bot Status', callback_data: 'show_status' }
+                    { text: '🔴 Auto Rug', callback_data: 'auto_rug' }
+                ],
+                [
+                    { text: '📊 Bot Status', callback_data: 'show_status' },
+                    { text: '❌ Cancel Auto Rug', callback_data: 'cancel_auto_rug' }
                 ]
             ]
         }
