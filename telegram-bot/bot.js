@@ -6,6 +6,7 @@ const TokenManager = require('./token-manager');
 const TradingSimulator = require('./trading-simulator');
 const RaydiumManager = require('./raydium-manager');
 const RealTradingManager = require('./real-trading-manager');
+const AIIntegrations = require('./ai-integrations');
 
 // Initialize Telegram Bot
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
@@ -28,12 +29,16 @@ const raydiumManager = new RaydiumManager(connection, walletManager, tokenManage
 // Initialize Real Trading Manager
 const realTradingManager = new RealTradingManager(walletManager, tokenManager, raydiumManager);
 
+// Initialize AI Integrations for Step 7
+const aiIntegrations = new AIIntegrations();
+
 // Bot state management
 const botState = {
     activeOperations: new Map(),
     currentToken: null,
     userSessions: new Map(), // Track user input sessions
-    tradingMode: 'real' // 'real' or 'simulation'
+    tradingMode: 'real', // 'real' or 'simulation'
+    autoBrandSessions: new Map() // Track auto-brand sessions
 };
 
 console.log('🚀 Solana Telegram Bot Starting...');
