@@ -2363,20 +2363,28 @@ ${tokenInfo.metadataResult && tokenInfo.metadataResult.success ?
         });
 
         // Send the AI-generated image if available
-        if (tokenInfo.metadataResult && tokenInfo.metadataResult.success && tokenInfo.generatedImageUrl) {
-            try {
-                console.log('📸 Sending AI-generated token image...');
-                await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
-                    caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 Stored on IPFS: ${tokenInfo.imageUri}\n📋 Metadata URI: ${tokenInfo.metadataUri}`,
-                    parse_mode: 'Markdown'
-                });
-            } catch (imageError) {
-                console.error('❌ Error sending AI-generated image:', imageError);
-                // Send image URL as fallback
-                if (tokenInfo.generatedImageUrl) {
-                    bot.sendMessage(chatId, `🎨 *Generated Token Logo:* ${tokenInfo.generatedImageUrl}`, { parse_mode: 'Markdown' });
+        if (tokenInfo.metadataResult && tokenInfo.metadataResult.success) {
+            if (tokenInfo.generatedImageUrl) {
+                try {
+                    console.log('📸 Sending AI-generated token image...');
+                    await bot.sendPhoto(chatId, tokenInfo.generatedImageUrl, {
+                        caption: `🎨 *AI-Generated Logo for ${tokenInfo.name}*\n\n✨ Created with DALL·E 3\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}\n📋 IPFS Metadata: ${tokenInfo.metadataIpfsUrl}`,
+                        parse_mode: 'Markdown'
+                    });
+                } catch (imageError) {
+                    console.error('❌ Error sending AI-generated image:', imageError);
+                    // Send IPFS links as fallback
+                    if (tokenInfo.generatedImageUrl && tokenInfo.ipfsImageUrl) {
+                        bot.sendMessage(chatId, `🎨 *Generated Token Logo*\n\n🔗 Generated Image: ${tokenInfo.generatedImageUrl}\n🌐 IPFS Image: ${tokenInfo.ipfsImageUrl}`, { parse_mode: 'Markdown' });
+                    }
                 }
             }
+        } else {
+            // Show enhanced metadata failure message
+            const errorMessage = tokenInfo.metadataResult ? tokenInfo.metadataResult.error : 'Unknown error';
+            const retryInfo = tokenInfo.metadataResult ? `\n📊 Retry attempts: Gen(${tokenInfo.metadataResult.retryAttempts?.imageGeneration || 0}), Up(${tokenInfo.metadataResult.retryAttempts?.imageUpload || 0}), Meta(${tokenInfo.metadataResult.retryAttempts?.metadataUpload || 0})` : '';
+            
+            bot.sendMessage(chatId, `⚠️ *Image Generation Failed After Retries*\n\n❌ ${errorMessage}${retryInfo}\n\n✅ AI token created successfully with basic metadata`, { parse_mode: 'Markdown' });
         }
 
         // Clean up session
