@@ -1613,7 +1613,172 @@ Choose your next step:
         botState.autoBrandSessions.delete(userId);
         bot.sendMessage(chatId, '❌ AI generation cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'use_trending_yes') {
+        const session = botState.autoBrandSessions.get(userId);
+        if (session) {
+            session.data.useTrending = true;
+            
+            if (session.data.nameOnly) {
+                // For auto-name, generate immediately
+                await processAutoBrandGeneration(chatId, userId, session.data);
+            } else {
+                // For auto-brand, ask for image style
+                session.step = 'waiting_for_style';
+                
+                const message = `
+🎨 *Step 3/3:* Choose your logo image style
+
+**Cartoon:** Fun, colorful, animated look
+**3D:** Modern, sleek, high-quality 3D graphics
+
+🔥 **Using Trending Data**
+${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI Creativity**'}
+                `;
+
+                bot.sendMessage(chatId, message, {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '🎭 Cartoon Style', callback_data: 'style_cartoon' },
+                                { text: '🔮 3D Style', callback_data: 'style_3d' }
+                            ],
+                            [
+                                { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                            ]
+                        ]
+                    }
+                });
+            }
+            
+            botState.autoBrandSessions.set(userId, session);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'use_trending_no') {
+        const session = botState.autoBrandSessions.get(userId);
+        if (session) {
+            session.data.useTrending = false;
+            
+            if (session.data.nameOnly) {
+                // For auto-name, generate immediately
+                await processAutoBrandGeneration(chatId, userId, session.data);
+            } else {
+                // For auto-brand, ask for image style
+                session.step = 'waiting_for_style';
+                
+                const message = `
+🎨 *Step 3/3:* Choose your logo image style
+
+**Cartoon:** Fun, colorful, animated look
+**3D:** Modern, sleek, high-quality 3D graphics
+
+🎨 **Pure AI Generation**
+${session.data.theme ? `🎨 **Theme:** ${session.data.theme}` : '🎲 **Pure AI Creativity**'}
+                `;
+
+                bot.sendMessage(chatId, message, {
+                    parse_mode: 'Markdown',
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                { text: '🎭 Cartoon Style', callback_data: 'style_cartoon' },
+                                { text: '🔮 3D Style', callback_data: 'style_3d' }
+                            ],
+                            [
+                                { text: '❌ Cancel', callback_data: 'cancel_auto_brand' }
+                            ]
+                        ]
+                    }
+                });
+            }
+            
+            botState.autoBrandSessions.set(userId, session);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'style_cartoon') {
+        const session = botState.autoBrandSessions.get(userId);
+        if (session) {
+            session.data.imageStyle = 'cartoon';
+            await processAutoBrandGeneration(chatId, userId, session.data);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'style_3d') {
+        const session = botState.autoBrandSessions.get(userId);
+        if (session) {
+            session.data.imageStyle = '3D';
+            await processAutoBrandGeneration(chatId, userId, session.data);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('launch_ai_concept_')) {
+        const session = botState.autoBrandSessions.get(userId);
+        if (session && session.generatedConcept) {
+            // Launch token with AI-generated concept
+            await launchAIConcept(chatId, userId, session);
+        } else {
+            bot.sendMessage(chatId, '❌ AI concept not found. Please generate a new one.');
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
     }
+});
+
+async function launchAIConcept(chatId, userId, session) {
+    const concept = session.generatedConcept;
+    const imageResult = session.generatedImage;
+    
+    try {
+        bot.sendMessage(chatId, '🔄 *Launching AI-Generated Token...* This may take 60-90 seconds.', { parse_mode: 'Markdown' });
+
+        // Use AI concept to create token
+        const tokenInfo = await tokenManager.createToken(
+            concept.name,
+            concept.ticker,
+            10000000, // Default supply of 10M
+            concept.description,
+            imageResult && imageResult.imageUrl && !imageResult.error ? imageResult.imageUrl : '',
+            userId
+        );
+
+        const tokenMessage = `
+🎉 *AI Token Created Successfully!*
+
+📛 **Name:** ${tokenInfo.name}
+🏷️ **Symbol:** ${tokenInfo.symbol}
+🪙 **Supply:** ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol}
+📝 **Description:** ${tokenInfo.description || 'None'}
+🖼️ **Image:** ${tokenInfo.imageUrl ? 'AI-Generated Logo' : 'None'}
+
+🌐 **Network:** Solana Devnet
+💰 **Minted to:** Wallet 1
+⚡ **AI-Powered:** GPT-4 ${imageResult ? '+ DALL·E 3' : 'Generated'}
+
+🔗 **Mint Address:** \`${tokenInfo.mintAddress}\`
+        `;
+
+        bot.sendMessage(chatId, tokenMessage, { 
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        { text: '🏊 Create Pool', callback_data: `create_pool_${tokenInfo.mintAddress}` },
+                        { text: '🌱 Seed Wallets', callback_data: `seed_token_${tokenInfo.mintAddress}` }
+                    ],
+                    [
+                        { text: '📊 Bot Status', callback_data: 'show_status' },
+                        { text: '💰 Check Wallets', callback_data: 'show_wallets' }
+                    ]
+                ]
+            }
+        });
+
+        // Clean up session
+        botState.autoBrandSessions.delete(userId);
+        
+    } catch (error) {
+        console.error('❌ AI token creation error:', error);
+        bot.sendMessage(chatId, `❌ AI token creation failed: ${error.message}\n\nPlease try again.`);
+        botState.autoBrandSessions.delete(userId);
+    }
+}
 });
 
 // Handle auto-brand theme input
