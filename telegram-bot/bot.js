@@ -835,6 +835,13 @@ bot.onText(/\/cancel_auto_rug/, (msg) => {
     cancelAutoRug(chatId);
 });
 
+// RESEARCH: Set Dynamic Fees Command
+bot.onText(/\/set_fees(?:\s+(.+))?/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const params = match[1];
+    startSetFeesFlow(chatId, params);
+});
+
 function startAutoBrandFlow(chatId, userId) {
     // Initialize auto-brand session
     botState.autoBrandSessions.set(userId, {
