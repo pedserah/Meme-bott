@@ -77,6 +77,7 @@ Available Commands:
 
 ⚡ *Step 7+ Complete:* AI-powered auto branding with Fal.ai & nft.storage!
 🎯 *Features:* Auto naming, logo generation, trending analysis
+🔬 *RESEARCH MODE:* Liquidity mechanics simulation for educational analysis
     `;
     
     bot.sendMessage(chatId, welcomeMessage, { 
