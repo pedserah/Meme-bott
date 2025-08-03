@@ -197,7 +197,9 @@ let statusMessage = `
             const hasPool = raydiumManager.hasPool(token.mintAddress);
             const poolStatus = hasPool ? '🏊 Pool Created' : '❌ No Pool';
             
-            statusMessage += `\n${index + 1}. <b>${token.name}</b> (${token.symbol})\n`;
+            const fees = botState.dynamicFees.get(token.mintAddress);
+            const feeInfo = fees ? ` | Buy: ${fees.buyFee}%, Sell: ${fees.sellFee}%` : ' | Fees: 0%, 0%';
+            statusMessage += `\n${index + 1}. <b>${token.name}</b> (${token.symbol})${feeInfo}\n`;
             statusMessage += `   📍 Mint: <code>${token.mintAddress.substring(0, 8)}...</code>\n`;
             statusMessage += `   📝 Description: ${token.description || 'None'}\n`;
             statusMessage += `   🖼️ Image: ${token.imageUrl ? 'Yes' : 'No'}\n`;
