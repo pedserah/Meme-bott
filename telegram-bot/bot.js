@@ -184,7 +184,8 @@ let statusMessage = `
 🏊 Pools Created: ${createdPools.length}
 📈 Trading: ${tradingInfo}
 🔴 Auto-Rug: ${botState.autoRugMonitor.active ? '✅ Active' : '❌ Inactive'}
-⚡ Mode: Real DEX Trading + AI Branding + Auto-Rug (Step 7+)
+🔬 Research Mode: ✅ Dynamic Fees | Devnet Only
+⚡ Mode: Real DEX Trading + AI Branding + Auto-Rug + Research (Step 7+)
 
 <b>Current Step:</b> Step 7+ Complete - AI + Auto-Rugpull + Fal.ai
 <b>Features:</b> Fal.ai imaging, creative naming, automated conditional rugpulls
