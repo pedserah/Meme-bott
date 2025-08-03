@@ -1246,7 +1246,216 @@ Please check manually with /rugpull
     }
 }
 
-function cancelAutoRug(chatId) {
+function startSetFeesFlow(chatId, params) {
+    const createdTokens = Array.from(tokenManager.getAllTokens().values());
+    
+    if (createdTokens.length === 0) {
+        bot.sendMessage(chatId, `
+❌ *No Tokens Found*
+
+🔬 *RESEARCH FEATURE*
+
+You need to create a token first before setting dynamic fees.
+
+Steps:
+1. Use /launch to create a token
+2. Then use /set_fees to configure buy/sell fees for research
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+
+    if (params) {
+        // Parse parameters from command: /set_fees [token_index] [buy_fee] [sell_fee]
+        try {
+            const parts = params.split(/\s+/);
+            if (parts.length !== 3) {
+                throw new Error('Invalid parameter count');
+            }
+            
+            const tokenIndex = parseInt(parts[0]) - 1;
+            const buyFee = parseFloat(parts[1]);
+            const sellFee = parseFloat(parts[2]);
+            
+            if (isNaN(tokenIndex) || isNaN(buyFee) || isNaN(sellFee)) {
+                throw new Error('Invalid parameter values');
+            }
+            
+            if (buyFee < 0 || buyFee > 99 || sellFee < 0 || sellFee > 99) {
+                throw new Error('Fees must be between 0% and 99%');
+            }
+            
+            if (tokenIndex < 0 || tokenIndex >= createdTokens.length) {
+                throw new Error('Invalid token index');
+            }
+            
+            const selectedToken = createdTokens[tokenIndex];
+            setTokenFees(chatId, selectedToken.mintAddress, buyFee, sellFee);
+            
+        } catch (error) {
+            bot.sendMessage(chatId, `
+❌ *Invalid Parameters*
+
+🔬 *RESEARCH FEATURE*
+
+Usage: \`/set_fees [token_number] [buy_fee] [sell_fee]\`
+
+Example: \`/set_fees 1 5 10\`
+- Token: 1 (first token)
+- Buy Fee: 5%  
+- Sell Fee: 10%
+
+Valid ranges: 0% - 99%
+
+Or use /set_fees without parameters for interactive setup.
+            `, { parse_mode: 'Markdown' });
+        }
+    } else {
+        // Interactive mode
+        showSetFeesMenu(chatId);
+    }
+}
+
+function showSetFeesMenu(chatId) {
+    const createdTokens = Array.from(tokenManager.getAllTokens().values());
+    
+    if (createdTokens.length === 1) {
+        // If only one token, go directly to fee setting
+        showFeeInputMenu(chatId, createdTokens[0].mintAddress);
+        return;
+    }
+    
+    const tokenButtons = createdTokens.map((token, index) => {
+        const fees = botState.dynamicFees.get(token.mintAddress);
+        const feeStatus = fees ? `(Buy: ${fees.buyFee}%, Sell: ${fees.sellFee}%)` : '(Fees: 0%, 0%)';
+        
+        return [{
+            text: `🔬 ${token.name} ${feeStatus}`,
+            callback_data: `set_fees_token_${token.mintAddress}`
+        }];
+    });
+    
+    bot.sendMessage(chatId, `
+🔬 *RESEARCH: Dynamic Fee System*
+
+**⚠️ DEVNET RESEARCH ONLY ⚠️**
+
+Select a token to configure dynamic buy/sell fees:
+
+**Purpose:** Study trading behavior impact
+**Current Fees:** All start at 0% (no fees)
+**Range:** 0% - 99% for both buy and sell
+**Collection:** All fees go to owner wallet (Wallet 1)
+    `, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                ...tokenButtons,
+                [{ text: '❌ Cancel', callback_data: 'cancel_set_fees' }]
+            ]
+        }
+    });
+}
+
+function showFeeInputMenu(chatId, tokenMint) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    const currentFees = botState.dynamicFees.get(tokenMint) || { buyFee: 0, sellFee: 0, enabled: true };
+    
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    const message = `
+🔬 *RESEARCH: Set Dynamic Fees*
+
+**⚠️ DEVNET RESEARCH ONLY ⚠️**
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+
+📊 **Current Fees:**
+• Buy Fee: ${currentFees.buyFee}%
+• Sell Fee: ${currentFees.sellFee}%
+
+⚙️ **Quick Presets:**
+    `;
+
+    bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🆓 No Fees (0%, 0%)', callback_data: `fees_preset_${tokenMint}_0_0` },
+                    { text: '📈 Light (2%, 5%)', callback_data: `fees_preset_${tokenMint}_2_5` }
+                ],
+                [
+                    { text: '🔥 Medium (5%, 10%)', callback_data: `fees_preset_${tokenMint}_5_10` },
+                    { text: '⚠️ High (10%, 20%)', callback_data: `fees_preset_${tokenMint}_10_20` }
+                ],
+                [
+                    { text: '🚨 Research Max (25%, 50%)', callback_data: `fees_preset_${tokenMint}_25_50` }
+                ],
+                [
+                    { text: '⚙️ Custom Fees', callback_data: `fees_custom_${tokenMint}` },
+                    { text: '❌ Cancel', callback_data: 'cancel_set_fees' }
+                ]
+            ]
+        }
+    });
+}
+
+function setTokenFees(chatId, tokenMint, buyFee, sellFee) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    // Store the fees (in real implementation, this would update smart contract)
+    botState.dynamicFees.set(tokenMint, {
+        buyFee: buyFee,
+        sellFee: sellFee,
+        enabled: true,
+        updatedAt: new Date().toISOString()
+    });
+
+    console.log(`🔬 RESEARCH: Set fees for ${tokenInfo.symbol} - Buy: ${buyFee}%, Sell: ${sellFee}%`);
+
+    bot.sendMessage(chatId, `
+✅ *Dynamic Fees Updated*
+
+🔬 **RESEARCH MODE - DEVNET ONLY**
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+
+📊 **New Fee Structure:**
+• **Buy Fee:** ${buyFee}% 
+• **Sell Fee:** ${sellFee}%
+• **Fee Collection:** All fees → Wallet 1
+• **Status:** Active
+
+⚠️ **Research Note:** 
+This simulates how dynamic fees affect:
+• Trading bot behavior
+• Front-running strategies  
+• Automated trading patterns on AMMs
+
+💡 **Next Steps:**
+• Use /start_trading to observe fee impact
+• Monitor trading patterns with new fees
+• Use /status to view current fee settings
+    `, { 
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '📈 Start Trading', callback_data: 'start_trading' },
+                    { text: '📊 Check Status', callback_data: 'show_status' }
+                ]
+            ]
+        }
+    });
+}
     if (!botState.autoRugMonitor.active) {
         bot.sendMessage(chatId, `
 💡 *No Active Auto-Rugpull*
