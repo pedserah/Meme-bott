@@ -1456,6 +1456,8 @@ This simulates how dynamic fees affect:
         }
     });
 }
+
+function cancelAutoRug(chatId) {
     if (!botState.autoRugMonitor.active) {
         bot.sendMessage(chatId, `
 💡 *No Active Auto-Rugpull*
