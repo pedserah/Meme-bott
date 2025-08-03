@@ -2525,6 +2525,42 @@ Enter parameters separated by spaces:
             bot.sendMessage(chatId, '❌ No auto-rugpull monitoring is currently active.');
         }
         bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'set_fees') {
+        startSetFeesFlow(chatId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_set_fees') {
+        bot.sendMessage(chatId, '❌ Fee setting cancelled.');
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('set_fees_token_')) {
+        const tokenMint = data.replace('set_fees_token_', '');
+        showFeeInputMenu(chatId, tokenMint);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('fees_preset_')) {
+        const parts = data.replace('fees_preset_', '').split('_');
+        const tokenMint = parts[0];
+        const buyFee = parseFloat(parts[1]);
+        const sellFee = parseFloat(parts[2]);
+        
+        setTokenFees(chatId, tokenMint, buyFee, sellFee);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('fees_custom_')) {
+        const tokenMint = data.replace('fees_custom_', '');
+        bot.sendMessage(chatId, `
+🔬 *RESEARCH: Custom Fee Setup*
+
+🪙 **Token:** ${tokenManager.getToken(tokenMint)?.name || 'Unknown'}
+
+Enter custom fees in format:
+\`/set_fees 1 [buy_fee] [sell_fee]\`
+
+**Examples:**
+• \`/set_fees 1 3 7\` - 3% buy, 7% sell
+• \`/set_fees 1 0 15\` - 0% buy, 15% sell  
+• \`/set_fees 1 8 8\` - 8% both ways
+
+**Valid Range:** 0% - 99%
+        `, { parse_mode: 'Markdown' });
+        bot.answerCallbackQuery(callbackQuery.id);
     }
 });
 
