@@ -46,7 +46,9 @@ const botState = {
         chatId: null,
         tokenMint: null,
         intervalId: null
-    }
+    },
+    // Research: Dynamic fee system
+    dynamicFees: new Map() // tokenMint -> { buyFee: %, sellFee: %, enabled: bool }
 };
 
 console.log('🚀 Solana Telegram Bot Starting...');
