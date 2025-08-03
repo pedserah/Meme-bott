@@ -68,6 +68,7 @@ Available Commands:
 🤖 /auto_brand - AI-powered brand generation ✅ NEW
 🎯 /auto_name - AI-powered name generation ✅ NEW
 🔴 /auto_rug - Automated rugpull with conditions ✅ NEW
+🔬 /set_fees - RESEARCH: Set dynamic buy/sell fees ✅ NEW
 🌱 /seed_wallets - Distribute tokens to trading wallets ✅ NEW
 🏊 /create_pool - Create Raydium pool ✅ NEW
 📈 /start_trading - Start automated trading ✅ REAL SWAPS
