@@ -104,8 +104,8 @@ Available Commands:
                     { text: '⏸️ Stop Trading', callback_data: 'stop_trading' }
                 ],
                 [
-                    { text: '🔴 Rugpull', callback_data: 'rugpull' },
-                    { text: '🔴 Auto Rug', callback_data: 'auto_rug' }
+                    { text: '🔴 Auto Rug', callback_data: 'auto_rug' },
+                    { text: '🔬 Set Fees', callback_data: 'set_fees' }
                 ],
                 [
                     { text: '📊 Bot Status', callback_data: 'show_status' },
