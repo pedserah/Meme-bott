@@ -2105,8 +2105,14 @@ Choose a wallet to request 1 SOL airdrop:
         realRugpullCommand(chatId);
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data.startsWith('seed_token_')) {
-        const tokenMint = data.replace('seed_token_', '');
-        await seedWalletsForToken(chatId, tokenMint);
+        // Old token-based seeding - redirect to new SOL distribution
+        bot.sendMessage(chatId, `
+🔄 *Wallet Seeding Updated*
+
+The seeding system now distributes SOL instead of tokens for better trading flexibility.
+
+Use /seed_wallets to equally distribute SOL from Wallet 1 to trading wallets.
+        `, { parse_mode: 'Markdown' });
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'cancel_seed') {
         bot.sendMessage(chatId, '❌ Wallet seeding cancelled.');
