@@ -2114,6 +2114,9 @@ The seeding system now distributes SOL instead of tokens for better trading flex
 Use /seed_wallets to equally distribute SOL from Wallet 1 to trading wallets.
         `, { parse_mode: 'Markdown' });
         bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'confirm_sol_distribution') {
+        await seedWalletsWithSOL(chatId);
+        bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'cancel_seed') {
         bot.sendMessage(chatId, '❌ Wallet seeding cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
