@@ -51,7 +51,7 @@ user_problem_statement: "Modify the /seed_wallets command to distribute SOL from
 
 backend:
   - task: "Modify seed_wallets SOL distribution"
-    implemented: false 
+    implemented: true 
     working: "NA"
     file: "telegram-bot/bot.js"
     stuck_count: 0
@@ -60,7 +60,7 @@ backend:
     status_history:
         - working: "NA"
         - agent: "main"
-        - comment: "Starting modification of seedWalletsForToken function to distribute SOL instead of tokens"
+        - comment: "COMPLETED: Modified seedWalletsForToken to seedWalletsWithSOL. Added SOL transfer functionality to wallet-manager.js. Updated command flow to distribute SOL equally from Wallet 1 to Wallets 2-5. Reserves 0.1 SOL in Wallet 1 for transaction fees. Updated help text and command descriptions."
 
 metadata:
   created_by: "main_agent"
