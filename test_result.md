@@ -47,18 +47,37 @@
 ##   test_sequence: 0
 ##   run_ui: false
 ##
-## test_plan:
-##   current_focus:
-##     - "Task name 1"
-##     - "Task name 2"
-##   stuck_tasks:
-##     - "Task name with persistent issues"
-##   test_all: false
-##   test_priority: "high_first"  # or "sequential" or "stuck_first"
-##
-## agent_communication:
-##     -agent: "main"  # or "testing" or "user"
-##     -message: "Communication message between agents"
+user_problem_statement: "Modify the /seed_wallets command to distribute SOL from Wallet 1 to Wallets 2-5 instead of tokens. Users want equal SOL distribution among wallets 2-5. Also need to explain the tax implementation that was previously built."
+
+backend:
+  - task: "Modify seed_wallets SOL distribution"
+    implemented: false 
+    working: "NA"
+    file: "telegram-bot/bot.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+        - agent: "main"
+        - comment: "Starting modification of seedWalletsForToken function to distribute SOL instead of tokens"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Modify seed_wallets SOL distribution"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+    - message: "Analyzing current seed_wallets functionality and preparing to modify it to distribute SOL instead of tokens. Current implementation transfers tokens from Wallet 1 to Wallets 2-5 using raydiumManager.transferTokens(). Need to replace this with equal SOL distribution logic."
 
 # Protocol Guidelines for Main agent
 #
