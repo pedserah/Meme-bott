@@ -247,43 +247,36 @@ bot.onText(/\/seed_wallets/, (msg) => {
 });
 
 function seedWalletsCommand(chatId) {
-    const createdTokens = tokenManager.getAllTokens();
-    
-    if (createdTokens.length === 0) {
-        bot.sendMessage(chatId, `
-❌ *No Tokens Found*
+    // New approach: Always distribute SOL (no need for token selection)
+    bot.sendMessage(chatId, `
+🌱 *SOL Distribution to Trading Wallets*
 
-You need to create a token first before seeding wallets.
+💰 This will equally distribute SOL from Wallet 1 to Wallets 2-5
 
-Use /launch to create your first token!
-        `, { parse_mode: 'Markdown' });
-        return;
-    }
+**What happens:**
+• Calculate available SOL in Wallet 1 (minus 0.1 SOL reserve)
+• Divide equally among wallets 2, 3, 4, and 5
+• Each wallet gets the same amount of SOL
 
-    // If only one token, seed immediately
-    if (createdTokens.length === 1) {
-        seedWalletsForToken(chatId, createdTokens[0].mintAddress);
-    } else {
-        // Multiple tokens - let user choose
-        const tokenButtons = createdTokens.map(token => [{
-            text: `🌱 ${token.name} (${token.symbol})`,
-            callback_data: `seed_token_${token.mintAddress}`
-        }]);
-        
-        bot.sendMessage(chatId, `
-🌱 *Select Token to Distribute*
+**Requirements:**
+• Wallet 1 must have sufficient SOL balance
+• 0.1 SOL will be kept in Wallet 1 for transaction fees
 
-Choose which token you want to distribute to trading wallets:
-        `, {
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    ...tokenButtons,
-                    [{ text: '❌ Cancel', callback_data: 'cancel_seed' }]
+Ready to distribute SOL to trading wallets?
+    `, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '🌱 Distribute SOL', callback_data: 'confirm_sol_distribution' },
+                    { text: '💰 Check Balances First', callback_data: 'show_wallets' }
+                ],
+                [
+                    { text: '❌ Cancel', callback_data: 'cancel_seed' }
                 ]
-            }
-        });
-    }
+            ]
+        }
+    });
 }
 
 async function seedWalletsWithSOL(chatId) {
