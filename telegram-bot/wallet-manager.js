@@ -1,4 +1,4 @@
-const { Keypair, PublicKey, LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const { Keypair, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram, sendAndConfirmTransaction } = require('@solana/web3.js');
 const bip39 = require('bip39');
 const { derivePath } = require('ed25519-hd-key');
 
