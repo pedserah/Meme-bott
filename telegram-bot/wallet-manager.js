@@ -115,6 +115,70 @@ class WalletManager {
         return message;
     }
 
+    // Transfer SOL between wallets
+    async transferSOL(fromWalletId, toWalletId, amountSOL) {
+        const fromWallet = this.getWallet(fromWalletId);
+        const toWallet = this.getWallet(toWalletId);
+
+        if (!fromWallet) {
+            throw new Error(`Source wallet ${fromWalletId} not found`);
+        }
+        if (!toWallet) {
+            throw new Error(`Destination wallet ${toWalletId} not found`);
+        }
+
+        try {
+            console.log(`💸 Transferring ${amountSOL} SOL from wallet ${fromWalletId} to wallet ${toWalletId}...`);
+
+            // Check if source wallet has enough balance
+            await this.updateBalances();
+            if (fromWallet.balance < amountSOL) {
+                throw new Error(`Insufficient balance. Wallet ${fromWalletId} has ${fromWallet.balance.toFixed(4)} SOL, need ${amountSOL} SOL`);
+            }
+
+            // Create transfer transaction
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: fromWallet.keypair.publicKey,
+                    toPubkey: toWallet.keypair.publicKey,
+                    lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL)
+                })
+            );
+
+            // Send and confirm transaction
+            const signature = await sendAndConfirmTransaction(
+                this.connection,
+                transaction,
+                [fromWallet.keypair]
+            );
+
+            // Update balances after transaction
+            await this.updateBalances();
+
+            console.log(`✅ SOL transfer completed: ${signature}`);
+
+            return {
+                success: true,
+                fromWallet: fromWalletId,
+                toWallet: toWalletId,
+                amount: amountSOL,
+                signature: signature,
+                newFromBalance: fromWallet.balance,
+                newToBalance: toWallet.balance
+            };
+
+        } catch (error) {
+            console.error(`❌ SOL transfer failed from wallet ${fromWalletId} to ${toWalletId}:`, error.message);
+            return {
+                success: false,
+                fromWallet: fromWalletId,
+                toWallet: toWalletId,
+                amount: amountSOL,
+                error: error.message
+            };
+        }
+    }
+
     // Request devnet SOL airdrop for testing
     async requestAirdrop(walletId, amount = 1) {
         const wallet = this.getWallet(walletId);
