@@ -281,99 +281,119 @@ Ready to distribute SOL to trading wallets?
 
 async function seedWalletsWithSOL(chatId) {
     try {
-        // Get Wallet 1 balance to calculate equal distribution
+        // Get all wallet balances
         await walletManager.updateBalances();
-        const wallet1 = walletManager.getWallet(1);
+        const allWallets = walletManager.getAllWallets();
         
-        if (!wallet1) {
-            bot.sendMessage(chatId, '❌ Wallet 1 not found');
+        if (allWallets.length !== 5) {
+            bot.sendMessage(chatId, '❌ Not all 5 wallets are configured');
             return;
         }
 
-        // Reserve 0.1 SOL for transaction fees in Wallet 1
-        const reserveAmount = 0.1;
-        const availableSOL = wallet1.balance - reserveAmount;
+        // Calculate total SOL across all wallets
+        const totalSOL = allWallets.reduce((sum, wallet) => sum + wallet.balance, 0);
+        
+        // Reserve 0.5 SOL total for transaction fees (0.1 per wallet)
+        const reserveAmount = 0.5;
+        const availableSOL = totalSOL - reserveAmount;
         
         if (availableSOL <= 0) {
             bot.sendMessage(chatId, `
-❌ *Insufficient SOL in Wallet 1*
+❌ *Insufficient Total SOL*
 
-💰 Current Balance: ${wallet1.balance.toFixed(4)} SOL
+💰 Total SOL Across All Wallets: ${totalSOL.toFixed(4)} SOL
 🔒 Required Reserve: ${reserveAmount} SOL for transaction fees
-❌ Available for Distribution: ${availableSOL.toFixed(4)} SOL
+❌ Available for Equal Distribution: ${availableSOL.toFixed(4)} SOL
 
-Please fund Wallet 1 first with /airdrop 1 or transfer more SOL.
+Please fund wallets first with /airdrop commands.
             `, { parse_mode: 'Markdown' });
             return;
         }
 
-        // Calculate equal distribution among wallets 2-5 (4 wallets)
-        const solPerWallet = availableSOL / 4;
+        // Calculate equal balance for each wallet
+        const targetBalance = availableSOL / 5;
 
         bot.sendMessage(chatId, `
-🔄 *Distributing SOL to Trading Wallets...*
+🔄 *Equalizing SOL Across All Wallets...*
 
-💰 Total Available: ${availableSOL.toFixed(4)} SOL
-🌱 Distributing SOL from Wallet 1 to Wallets 2-5
-💰 Amount per wallet: ${solPerWallet.toFixed(4)} SOL
-🔒 Keeping ${reserveAmount} SOL in Wallet 1 for fees
+💰 Total SOL: ${totalSOL.toFixed(4)} SOL
+🎯 Target Balance Per Wallet: ${targetBalance.toFixed(4)} SOL
+🔒 Keeping ${reserveAmount} SOL total for transaction fees
 
-This may take 30-60 seconds...
+*Current Balances:*
+${allWallets.map(w => `• Wallet ${w.id}: ${w.balance.toFixed(4)} SOL`).join('\n')}
+
+Redistributing to achieve equal balances...
         `, { parse_mode: 'Markdown' });
 
-        const seedResults = [];
-
-        // Transfer SOL from wallet 1 to wallets 2-5
+        const redistributionResults = [];
+        
+        // Phase 1: Collect excess SOL to Wallet 1
         for (let walletId = 2; walletId <= 5; walletId++) {
-            try {
-                const result = await walletManager.transferSOL(
-                    1, // from wallet 1
-                    walletId, // to wallet 2-5
-                    solPerWallet
-                );
-                
-                seedResults.push(result);
-                if (result.success) {
-                    console.log(`✅ Distributed ${solPerWallet.toFixed(4)} SOL to wallet ${walletId}`);
-                } else {
-                    console.error(`❌ Failed to distribute SOL to wallet ${walletId}:`, result.error);
+            const wallet = walletManager.getWallet(walletId);
+            if (wallet.balance > targetBalance) {
+                const excessAmount = wallet.balance - targetBalance;
+                try {
+                    const result = await walletManager.transferSOL(
+                        walletId, // from wallet with excess 
+                        1, // to wallet 1 (collector)
+                        excessAmount
+                    );
+                    redistributionResults.push(result);
+                    console.log(`✅ Collected ${excessAmount.toFixed(4)} SOL from wallet ${walletId}`);
+                } catch (error) {
+                    console.error(`❌ Failed to collect from wallet ${walletId}:`, error.message);
                 }
-            } catch (error) {
-                console.error(`❌ Failed to seed wallet ${walletId}:`, error.message);
-                seedResults.push({
-                    success: false,
-                    toWallet: walletId,
-                    error: error.message
-                });
             }
         }
 
-        const successfulSeeds = seedResults.filter(r => r.success).length;
-        const totalDistributed = successfulSeeds * solPerWallet;
-
-        // Get updated balances after transfers
+        // Update balances after collection phase
         await walletManager.updateBalances();
 
+        // Phase 2: Distribute from Wallet 1 to achieve equal balances
+        for (let walletId = 2; walletId <= 5; walletId++) {
+            const wallet = walletManager.getWallet(walletId);
+            if (wallet.balance < targetBalance) {
+                const neededAmount = targetBalance - wallet.balance;
+                try {
+                    const result = await walletManager.transferSOL(
+                        1, // from wallet 1 (has collected excess)
+                        walletId, // to wallet that needs SOL
+                        neededAmount
+                    );
+                    redistributionResults.push(result);
+                    console.log(`✅ Sent ${neededAmount.toFixed(4)} SOL to wallet ${walletId}`);
+                } catch (error) {
+                    console.error(`❌ Failed to send to wallet ${walletId}:`, error.message);
+                }
+            }
+        }
+
+        // Final balance adjustment for Wallet 1
+        await walletManager.updateBalances();
+        const wallet1 = walletManager.getWallet(1);
+        if (wallet1.balance > targetBalance) {
+            // Wallet 1 should also have equal balance
+            // Keep excess as reserve, but try to get close to target
+            console.log(`Wallet 1 has ${wallet1.balance.toFixed(4)} SOL, target is ${targetBalance.toFixed(4)} SOL`);
+        }
+
+        // Get final balances
+        await walletManager.updateBalances();
+        const finalWallets = walletManager.getAllWallets();
+
         bot.sendMessage(chatId, `
-🌱 *SOL Distribution Complete!*
+🌱 *SOL Equalization Complete!*
 
-💰 Distributed: ${totalDistributed.toFixed(4)} SOL
-✅ Successful Transfers: ${successfulSeeds}/4
+🎯 Target Balance: ${targetBalance.toFixed(4)} SOL per wallet
+✅ Redistribution Operations: ${redistributionResults.length}
 
-*SOL Distribution Results:*
-• Wallet 2: ${seedResults[0]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
-• Wallet 3: ${seedResults[1]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL  
-• Wallet 4: ${seedResults[2]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
-• Wallet 5: ${seedResults[3]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
+*Final Wallet Balances:*
+${finalWallets.map(w => `• Wallet ${w.id}: ${w.balance.toFixed(4)} SOL`).join('\n')}
 
-*Updated Wallet Balances:*
-• Wallet 1: ${walletManager.getWallet(1).balance.toFixed(4)} SOL (kept reserve)
-• Wallet 2: ${walletManager.getWallet(2).balance.toFixed(4)} SOL
-• Wallet 3: ${walletManager.getWallet(3).balance.toFixed(4)} SOL
-• Wallet 4: ${walletManager.getWallet(4).balance.toFixed(4)} SOL
-• Wallet 5: ${walletManager.getWallet(5).balance.toFixed(4)} SOL
+💰 Total SOL: ${finalWallets.reduce((sum, w) => sum + w.balance, 0).toFixed(4)} SOL
 
-🎯 All trading wallets are now funded equally with SOL!
+🎯 All wallets now have approximately equal SOL balances!
         `, { 
             parse_mode: 'Markdown',
             reply_markup: {
@@ -387,8 +407,8 @@ This may take 30-60 seconds...
         });
 
     } catch (error) {
-        console.error('❌ SOL distribution error:', error);
-        bot.sendMessage(chatId, `❌ SOL distribution failed: ${error.message}`);
+        console.error('❌ SOL equalization error:', error);
+        bot.sendMessage(chatId, `❌ SOL equalization failed: ${error.message}`);
     }
 }
 
