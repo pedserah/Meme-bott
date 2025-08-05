@@ -247,28 +247,27 @@ bot.onText(/\/seed_wallets/, (msg) => {
 });
 
 function seedWalletsCommand(chatId) {
-    // New approach: Always distribute SOL (no need for token selection)
     bot.sendMessage(chatId, `
-🌱 *SOL Distribution to Trading Wallets*
+🌱 *SOL Equalization Across All Wallets*
 
-💰 This will equally distribute SOL from Wallet 1 to Wallets 2-5
+💰 This will redistribute SOL so **ALL wallets have equal balance**
 
-**What happens:**
-• Calculate available SOL in Wallet 1 (minus 0.1 SOL reserve)
-• Divide equally among wallets 2, 3, 4, and 5
-• Each wallet gets the same amount of SOL
+**How it works:**
+• Calculate total SOL across all 5 wallets
+• Redistribute equally: Each wallet gets same amount
+• Reserve small amount for transaction fees
 
-**Requirements:**
-• Wallet 1 must have sufficient SOL balance
-• 0.1 SOL will be kept in Wallet 1 for transaction fees
+**Example:**
+• Total: 10 SOL across all wallets  
+• Result: Each wallet gets ~2 SOL (equal balance)
 
-Ready to distribute SOL to trading wallets?
+Ready to equalize SOL across all wallets?
     `, {
         parse_mode: 'Markdown',
         reply_markup: {
             inline_keyboard: [
                 [
-                    { text: '🌱 Distribute SOL', callback_data: 'confirm_sol_distribution' },
+                    { text: '⚖️ Equalize All Wallets', callback_data: 'confirm_sol_distribution' },
                     { text: '💰 Check Balances First', callback_data: 'show_wallets' }
                 ],
                 [
