@@ -286,40 +286,64 @@ Choose which token you want to distribute to trading wallets:
     }
 }
 
-async function seedWalletsForToken(chatId, tokenMint) {
-    const tokenInfo = tokenManager.getToken(tokenMint);
-    if (!tokenInfo) {
-        bot.sendMessage(chatId, '❌ Token not found');
-        return;
-    }
-
+async function seedWalletsWithSOL(chatId) {
     try {
-        bot.sendMessage(chatId, `
-🔄 *Seeding Trading Wallets...*
+        // Get Wallet 1 balance to calculate equal distribution
+        await walletManager.updateBalances();
+        const wallet1 = walletManager.getWallet(1);
+        
+        if (!wallet1) {
+            bot.sendMessage(chatId, '❌ Wallet 1 not found');
+            return;
+        }
 
-🪙 Token: ${tokenInfo.name} (${tokenInfo.symbol})
-🌱 Distributing tokens from Wallet 1 to Wallets 2-5
-💰 Amount per wallet: ~${(tokenInfo.totalSupply * 0.05).toLocaleString()} ${tokenInfo.symbol}
+        // Reserve 0.1 SOL for transaction fees in Wallet 1
+        const reserveAmount = 0.1;
+        const availableSOL = wallet1.balance - reserveAmount;
+        
+        if (availableSOL <= 0) {
+            bot.sendMessage(chatId, `
+❌ *Insufficient SOL in Wallet 1*
+
+💰 Current Balance: ${wallet1.balance.toFixed(4)} SOL
+🔒 Required Reserve: ${reserveAmount} SOL for transaction fees
+❌ Available for Distribution: ${availableSOL.toFixed(4)} SOL
+
+Please fund Wallet 1 first with /airdrop 1 or transfer more SOL.
+            `, { parse_mode: 'Markdown' });
+            return;
+        }
+
+        // Calculate equal distribution among wallets 2-5 (4 wallets)
+        const solPerWallet = availableSOL / 4;
+
+        bot.sendMessage(chatId, `
+🔄 *Distributing SOL to Trading Wallets...*
+
+💰 Total Available: ${availableSOL.toFixed(4)} SOL
+🌱 Distributing SOL from Wallet 1 to Wallets 2-5
+💰 Amount per wallet: ${solPerWallet.toFixed(4)} SOL
+🔒 Keeping ${reserveAmount} SOL in Wallet 1 for fees
 
 This may take 30-60 seconds...
         `, { parse_mode: 'Markdown' });
 
         const seedResults = [];
-        const amountPerWallet = tokenInfo.totalSupply * 0.05; // 5% of total supply per wallet
 
-        // Transfer tokens from wallet 1 to wallets 2-5
+        // Transfer SOL from wallet 1 to wallets 2-5
         for (let walletId = 2; walletId <= 5; walletId++) {
             try {
-                const result = await raydiumManager.transferTokens(
-                    tokenMint,
+                const result = await walletManager.transferSOL(
                     1, // from wallet 1
                     walletId, // to wallet 2-5
-                    amountPerWallet
+                    solPerWallet
                 );
                 
+                seedResults.push(result);
                 if (result.success) {
-                    seedResults.push(result);
-                    console.log(`✅ Seeded wallet ${walletId} with ${amountPerWallet} ${tokenInfo.symbol}`);
+                    console.log(`✅ Distributed ${solPerWallet.toFixed(4)} SOL to wallet ${walletId}`);
+                } else {
+                    console.error(`❌ Failed to distribute SOL to wallet ${walletId}:`, result.error);
                 }
             } catch (error) {
                 console.error(`❌ Failed to seed wallet ${walletId}:`, error.message);
@@ -332,37 +356,46 @@ This may take 30-60 seconds...
         }
 
         const successfulSeeds = seedResults.filter(r => r.success).length;
-        const totalDistributed = successfulSeeds * amountPerWallet;
+        const totalDistributed = successfulSeeds * solPerWallet;
+
+        // Get updated balances after transfers
+        await walletManager.updateBalances();
 
         bot.sendMessage(chatId, `
-🌱 *Wallet Seeding Complete!*
+🌱 *SOL Distribution Complete!*
 
-🪙 Token: ${tokenInfo.name} (${tokenInfo.symbol})
+💰 Distributed: ${totalDistributed.toFixed(4)} SOL
 ✅ Successful Transfers: ${successfulSeeds}/4
-💰 Total Distributed: ${totalDistributed.toLocaleString()} ${tokenInfo.symbol}
 
-*Wallet Distribution:*
-• Wallet 2: ${seedResults[0]?.success ? '✅' : '❌'} ${amountPerWallet.toLocaleString()} ${tokenInfo.symbol}
-• Wallet 3: ${seedResults[1]?.success ? '✅' : '❌'} ${amountPerWallet.toLocaleString()} ${tokenInfo.symbol}
-• Wallet 4: ${seedResults[2]?.success ? '✅' : '❌'} ${amountPerWallet.toLocaleString()} ${tokenInfo.symbol}
-• Wallet 5: ${seedResults[3]?.success ? '✅' : '❌'} ${amountPerWallet.toLocaleString()} ${tokenInfo.symbol}
+*SOL Distribution Results:*
+• Wallet 2: ${seedResults[0]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
+• Wallet 3: ${seedResults[1]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL  
+• Wallet 4: ${seedResults[2]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
+• Wallet 5: ${seedResults[3]?.success ? '✅' : '❌'} ${solPerWallet.toFixed(4)} SOL
 
-🎯 Wallets are now ready for trading!
+*Updated Wallet Balances:*
+• Wallet 1: ${walletManager.getWallet(1).balance.toFixed(4)} SOL (kept reserve)
+• Wallet 2: ${walletManager.getWallet(2).balance.toFixed(4)} SOL
+• Wallet 3: ${walletManager.getWallet(3).balance.toFixed(4)} SOL
+• Wallet 4: ${walletManager.getWallet(4).balance.toFixed(4)} SOL
+• Wallet 5: ${walletManager.getWallet(5).balance.toFixed(4)} SOL
+
+🎯 All trading wallets are now funded equally with SOL!
         `, { 
             parse_mode: 'Markdown',
             reply_markup: {
                 inline_keyboard: [
                     [
-                        { text: '📈 Start Trading', callback_data: `trade_token_${tokenMint}` },
-                        { text: '💰 Check Balances', callback_data: 'show_wallets' }
+                        { text: '💰 Check All Balances', callback_data: 'show_wallets' },
+                        { text: '🚀 Launch Token', callback_data: 'launch_token' }
                     ]
                 ]
             }
         });
 
     } catch (error) {
-        console.error('❌ Wallet seeding error:', error);
-        bot.sendMessage(chatId, `❌ Wallet seeding failed: ${error.message}`);
+        console.error('❌ SOL distribution error:', error);
+        bot.sendMessage(chatId, `❌ SOL distribution failed: ${error.message}`);
     }
 }
 
