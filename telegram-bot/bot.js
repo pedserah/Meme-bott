@@ -69,7 +69,7 @@ Available Commands:
 🎯 /auto_name - AI-powered name generation ✅ NEW
 🔴 /auto_rug - Automated rugpull with conditions ✅ NEW
 🔬 /set_fees - RESEARCH: Set dynamic buy/sell fees ✅ NEW
-🌱 /seed_wallets - Distribute SOL equally to trading wallets ✅ UPDATED
+🌱 /seed_wallets - Equalize SOL balance across all wallets ✅ UPDATED
 🏊 /create_pool - Create Raydium pool ✅ NEW
 📈 /start_trading - Start automated trading ✅ REAL SWAPS
 ⏸️ /stop_trading - Stop automated trading
