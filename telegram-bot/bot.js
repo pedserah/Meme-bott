@@ -1660,7 +1660,7 @@ Make sure you have provided liquidity to the pool first.
 🔒 **Lock Details:**
 • Lock Account: \`${lockAccountId}\`
 • LP Tokens Locked: ${lpTokenBalance.toLocaleString()}
-• Lock Duration: 1 Year (365 days)
+• Lock Duration: 1 Month (30 days)
 • Unlock Date: ${unlockDate.toLocaleDateString()} ${unlockDate.toLocaleTimeString()}
 
 🛡️ **Security Measures:**
