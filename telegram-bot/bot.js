@@ -1847,83 +1847,36 @@ Select token to secure:
     });
 }
 
-async function executeRevokeAuthority(chatId, tokenMint) {
-    const tokenInfo = tokenManager.getToken(tokenMint);
-    
-    if (!tokenInfo) {
-        bot.sendMessage(chatId, '❌ Token not found');
+function cancelAutoRug(chatId) {
+    if (!botState.autoRugMonitor.active) {
+        bot.sendMessage(chatId, `
+💡 *No Active Auto-Rugpull*
+
+Auto-rugpull monitoring is not currently active.
+
+Use /auto_rug to set up conditional rugpull monitoring.
+        `, { parse_mode: 'Markdown' });
         return;
     }
 
-    try {
-        bot.sendMessage(chatId, `
-🔄 *Revoking Mint Authority...*
+    const tokenInfo = tokenManager.getToken(botState.autoRugMonitor.tokenMint);
+    const elapsedMinutes = Math.floor((new Date() - botState.autoRugMonitor.startTime) / 60000);
+    
+    // Stop monitoring
+    clearInterval(botState.autoRugMonitor.intervalId);
+    botState.autoRugMonitor.active = false;
+    
+    bot.sendMessage(chatId, `
+❌ *Auto-Rugpull Cancelled*
 
-🪙 Token: ${tokenInfo.name} (${tokenInfo.symbol})
-🔒 Action: Permanent mint authority revocation
-⚠️ **This action cannot be undone!**
+**Token:** ${tokenInfo?.name || 'Unknown'} (${tokenInfo?.symbol || 'TOKEN'})
+**Monitoring Duration:** ${elapsedMinutes} minutes
+**Status:** Monitoring stopped
 
-Processing transaction...
-        `, { parse_mode: 'Markdown' });
-
-        // Simulate authority revocation
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        
-        const revokeTxSignature = `${Date.now().toString(36)}${Math.random().toString(36).substr(2, 9)}`;
-        
-        const successMessage = `
-✅ *MINT AUTHORITY REVOKED SUCCESSFULLY!*
-
-🛡️ **Security Update:**
-• Token: ${tokenInfo.name} (${tokenInfo.symbol})
-• Mint Authority: ✅ PERMANENTLY DISABLED
-• Freeze Authority: ✅ PERMANENTLY DISABLED
-• Total Supply: ${tokenInfo.totalSupply.toLocaleString()} ${tokenInfo.symbol} (FIXED FOREVER)
-
-📄 **Transaction:**
-• Signature: \`${revokeTxSignature}\`
-• Block: Confirmed on Solana devnet
-• Status: Irreversible ✅
-
-🎯 **Benefits Achieved:**
-• No new tokens can ever be minted
-• Supply inflation impossible
-• Investor confidence maximized
-• Exchange listing requirements met
-• Rugpull prevention through mint lock
-
-🔗 **Verification:**
-• [View on Solscan](https://solscan.io/token/${tokenInfo.mintAddress}?cluster=devnet)
-• Check "Mint Authority: null" in explorer
-
-💡 **Next Steps:**
-• Use /lock_liquidity to lock LP tokens
-• Share mint authority proof with community
-• Apply for exchange listings with security proof
-        `;
-
-        bot.sendMessage(chatId, successMessage, { 
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: '🔒 Lock Liquidity', callback_data: `lock_liquidity_${tokenMint}` },
-                        { text: '🔗 View Explorer', callback_data: `view_explorer_${tokenInfo.mintAddress}` }
-                    ]
-                ]
-            }
-        });
-
-        // Update token info
-        tokenInfo.mintAuthorityRevoked = true;
-        tokenInfo.freezeAuthorityRevoked = true;
-        tokenInfo.revokeTxSignature = revokeTxSignature;
-        tokenInfo.revokedAt = new Date().toISOString();
-
-    } catch (error) {
-        console.error('❌ Authority revocation error:', error);
-        bot.sendMessage(chatId, `❌ Authority revocation failed: ${error.message}`);
-    }
+You can restart monitoring with /auto_rug anytime.
+    `, { parse_mode: 'Markdown' });
+    
+    console.log('❌ Auto-rugpull monitoring cancelled by user');
 }
 
 function startAutoNameFlow(chatId, userId) {
