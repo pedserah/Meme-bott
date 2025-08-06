@@ -878,10 +878,35 @@ bot.onText(/\/auto_rug(?:\s+(.+))?/, (msg, match) => {
     startAutoRugFlow(chatId, params);
 });
 
-// Cancel Auto Rug Command
-bot.onText(/\/cancel_auto_rug/, (msg) => {
+// Liquidity Lock Command
+bot.onText(/\/lock_liquidity/, (msg) => {
     const chatId = msg.chat.id;
-    cancelAutoRug(chatId);
+    lockLiquidityCommand(chatId);
+});
+
+// Verify Lock Command  
+bot.onText(/\/verify_lock(?:\s+(.+))?/, (msg, match) => {
+    const chatId = msg.chat.id;
+    const lockAccount = match[1];
+    
+    if (!lockAccount) {
+        bot.sendMessage(chatId, `
+❌ *Missing Lock Account*
+
+Usage: \`/verify_lock [lock_account_address]\`
+
+Example: \`/verify_lock 7xKFX...ABC123\`
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+    
+    verifyLockCommand(chatId, lockAccount.trim());
+});
+
+// Revoke Mint Authority Command
+bot.onText(/\/revoke_mint/, (msg) => {
+    const chatId = msg.chat.id;
+    revokeMintCommand(chatId);
 });
 
 // RESEARCH: Set Dynamic Fees Command
