@@ -909,11 +909,11 @@ bot.onText(/\/revoke_mint/, (msg) => {
     revokeMintCommand(chatId);
 });
 
-// RESEARCH: Set Dynamic Fees Command
-bot.onText(/\/set_fees(?:\s+(.+))?/, (msg, match) => {
+// RESEARCH: Add Wallet Exemption for Fees Command
+bot.onText(/\/exempt_wallet(?:\s+(.+))?/, (msg, match) => {
     const chatId = msg.chat.id;
     const params = match[1];
-    startSetFeesFlow(chatId, params);
+    exemptWalletCommand(chatId, params);
 });
 
 function startAutoBrandFlow(chatId, userId) {
