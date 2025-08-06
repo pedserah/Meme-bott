@@ -2867,8 +2867,29 @@ Features available:
 • Trading history
         `, { parse_mode: 'Markdown' });
         bot.answerCallbackQuery(callbackQuery.id);
-    } else if (data === 'cancel_lock' || data === 'cancel_revoke') {
-        bot.sendMessage(chatId, '❌ Operation cancelled.');
+    } else if (data.startsWith('exempt_token_')) {
+        const tokenMint = data.replace('exempt_token_', '');
+        showWalletSelectionMenu(chatId, tokenMint);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('toggle_exempt_')) {
+        const parts = data.replace('toggle_exempt_', '').split('_');
+        const tokenMint = parts[0];
+        const walletId = parseInt(parts[1]);
+        
+        // Toggle exemption status
+        const fees = botState.dynamicFees.get(tokenMint) || { exemptWallets: new Set() };
+        if (!fees.exemptWallets) fees.exemptWallets = new Set();
+        
+        const action = fees.exemptWallets.has(walletId) ? 'remove' : 'add';
+        updateWalletExemption(chatId, tokenMint, walletId, action);
+        
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('exemption_summary_')) {
+        const tokenMint = data.replace('exemption_summary_', '');
+        showExemptionSummary(chatId, tokenMint);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_exemption') {
+        bot.sendMessage(chatId, '❌ Wallet exemption management cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data.startsWith('create_pool_')) {
         const tokenMint = data.replace('create_pool_', '');
