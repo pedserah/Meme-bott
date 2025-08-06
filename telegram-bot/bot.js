@@ -695,17 +695,7 @@ Steps:
 ⚠️ *Warning: Trading is Active*
 
 Stop trading first with /stop_trading, then proceed with rugpull.
-        `, { 
-            parse_mode: 'Markdown',
-            reply_markup: {
-                inline_keyboard: [
-                    [
-                        { text: '⏸️ Stop Trading First', callback_data: 'stop_trading' },
-                        { text: '🔴 Rugpull Anyway', callback_data: 'force_rugpull' }
-                    ]
-                ]
-            }
-        });
+        `, { parse_mode: 'Markdown' });
         return;
     }
 
