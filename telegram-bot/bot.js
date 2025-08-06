@@ -1614,7 +1614,7 @@ async function executeLiquidityLock(chatId, tokenMint) {
 
 🪙 Token: ${tokenInfo.name} (${tokenInfo.symbol})
 🏊 Pool: ${poolInfo.poolId.substring(0, 12)}...
-🔒 Duration: 1 Year (365 days)
+🔒 Duration: 1 Month (30 days)
 💧 Amount: 100% of LP tokens
 
 ⚠️ **This action is PERMANENT and IRREVERSIBLE!**
