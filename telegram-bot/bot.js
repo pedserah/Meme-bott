@@ -1813,6 +1813,8 @@ ${nonExemptWallets.length > 0 ? nonExemptWallets.map(w => `• Wallet ${w}: 💰
         }
     });
 }
+
+function setTokenFees(chatId, tokenMint, buyFee, sellFee) {
     const tokenInfo = tokenManager.getToken(tokenMint);
     
     if (!tokenInfo) {
