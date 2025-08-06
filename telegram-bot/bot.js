@@ -1485,11 +1485,12 @@ function setTokenFees(chatId, tokenMint, buyFee, sellFee) {
         return;
     }
 
-    // Store the fees (in real implementation, this would update smart contract)
+    // Store the fees (with wallet exemptions)
     botState.dynamicFees.set(tokenMint, {
         buyFee: buyFee,
         sellFee: sellFee,
         enabled: true,
+        exemptWallets: new Set(), // Initialize empty exemption set
         updatedAt: new Date().toISOString()
     });
 
