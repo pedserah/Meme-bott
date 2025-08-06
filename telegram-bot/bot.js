@@ -1763,6 +1763,56 @@ Current exempt wallets: ${Array.from(fees.exemptWallets).join(', ') || 'None'}
 
     console.log(`💼 RESEARCH: Updated wallet ${walletId} exemption for ${tokenInfo.symbol} - Action: ${action}`);
 }
+
+function showExemptionSummary(chatId, tokenMint) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    const fees = botState.dynamicFees.get(tokenMint) || { buyFee: 0, sellFee: 0, exemptWallets: new Set() };
+    
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    const exemptWallets = Array.from(fees.exemptWallets || []);
+    const nonExemptWallets = [1, 2, 3, 4, 5].filter(w => !exemptWallets.includes(w));
+    
+    const summaryMessage = `
+📊 *WALLET EXEMPTION SUMMARY*
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+
+💰 **Fee Structure:**
+• Buy Fee: ${fees.buyFee}%
+• Sell Fee: ${fees.sellFee}%
+• Status: ${fees.enabled ? 'ACTIVE' : 'DISABLED'}
+
+💼 **Exempt Wallets (${exemptWallets.length}/5):**
+${exemptWallets.length > 0 ? exemptWallets.map(w => `• Wallet ${w}: ✅ NO FEES APPLIED`).join('\n') : '• None'}
+
+💰 **Fee-Paying Wallets (${nonExemptWallets.length}/5):**
+${nonExemptWallets.length > 0 ? nonExemptWallets.map(w => `• Wallet ${w}: 💰 ${fees.buyFee}%/${fees.sellFee}% fees`).join('\n') : '• None'}
+
+🎯 **Research Impact:**
+• Fee Collection: ${nonExemptWallets.length > 0 ? 'Active from ' + nonExemptWallets.length + ' wallets' : 'No fees collected'}
+• Exempted Volume: ${exemptWallets.length > 0 ? exemptWallets.length + ' wallets trade fee-free' : 'All wallets pay fees'}
+• Fee Differentiation: ${exemptWallets.length > 0 && nonExemptWallets.length > 0 ? 'Mixed fee tiers active' : 'Uniform fee structure'}
+    `;
+
+    bot.sendMessage(chatId, summaryMessage, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    { text: '💼 Modify Exemptions', callback_data: `exempt_token_${tokenMint}` },
+                    { text: '🔬 Adjust Fees', callback_data: `set_fees_${tokenMint}` }
+                ],
+                [
+                    { text: '📈 Start Trading', callback_data: 'start_trading' }
+                ]
+            ]
+        }
+    });
+}
     const tokenInfo = tokenManager.getToken(tokenMint);
     
     if (!tokenInfo) {
