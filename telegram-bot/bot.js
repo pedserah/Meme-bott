@@ -2522,11 +2522,36 @@ The seeding system now distributes SOL instead of tokens for better trading flex
 Use /seed_wallets to equally distribute SOL from Wallet 1 to trading wallets.
         `, { parse_mode: 'Markdown' });
         bot.answerCallbackQuery(callbackQuery.id);
-    } else if (data === 'confirm_sol_distribution') {
-        await seedWalletsWithSOL(chatId);
+    } else if (data.startsWith('lock_pool_')) {
+        const tokenMint = data.replace('lock_pool_', '');
+        await executeLiquidityLock(chatId, tokenMint);
         bot.answerCallbackQuery(callbackQuery.id);
-    } else if (data === 'cancel_seed') {
-        bot.sendMessage(chatId, '❌ Wallet seeding cancelled.');
+    } else if (data.startsWith('revoke_mint_')) {
+        const tokenMint = data.replace('revoke_mint_', '');
+        await executeRevokeAuthority(chatId, tokenMint);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('verify_lock_')) {
+        const lockAccount = data.replace('verify_lock_', '');
+        verifyLockCommand(chatId, lockAccount);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('view_chart_')) {
+        const poolId = data.replace('view_chart_', '');
+        bot.sendMessage(chatId, `
+📊 *DexScreener Chart*
+
+View your token's live trading data:
+🔗 https://dexscreener.com/solana/${poolId}
+
+Features available:
+• Real-time price tracking
+• Volume analysis
+• Liquidity monitoring  
+• Holder distribution
+• Trading history
+        `, { parse_mode: 'Markdown' });
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_lock' || data === 'cancel_revoke') {
+        bot.sendMessage(chatId, '❌ Operation cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data.startsWith('create_pool_')) {
         const tokenMint = data.replace('create_pool_', '');
