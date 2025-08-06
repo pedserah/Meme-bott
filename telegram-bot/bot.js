@@ -1635,10 +1635,10 @@ Make sure you have provided liquidity to the pool first.
             return;
         }
 
-        // Calculate 1 year from now
+        // Calculate 1 month from now (30 days)
         const currentTime = Math.floor(Date.now() / 1000);
-        const oneYearSeconds = 365 * 24 * 60 * 60; // 31,536,000 seconds
-        const unlockTime = currentTime + oneYearSeconds;
+        const oneMonthSeconds = 30 * 24 * 60 * 60; // 2,592,000 seconds (30 days)
+        const unlockTime = currentTime + oneMonthSeconds;
         const unlockDate = new Date(unlockTime * 1000);
 
         // Create liquidity lock (simplified simulation for devnet)
