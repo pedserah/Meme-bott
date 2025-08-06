@@ -536,6 +536,10 @@ class RaydiumManager {
     getAllPools() {
         return Array.from(this.createdPools.values());
     }
+    
+    getPool(tokenMint) {
+        return this.createdPools.get(tokenMint);
+    }
 
     // Check if pool exists for token
     hasPool(tokenMint) {
