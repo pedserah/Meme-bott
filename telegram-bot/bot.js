@@ -1477,7 +1477,292 @@ function showFeeInputMenu(chatId, tokenMint) {
     });
 }
 
-function setTokenFees(chatId, tokenMint, buyFee, sellFee) {
+function exemptWalletCommand(chatId, params) {
+    const createdTokens = Array.from(tokenManager.getAllTokens());
+    
+    if (createdTokens.length === 0) {
+        bot.sendMessage(chatId, `
+❌ *No Tokens Found*
+
+You need to create a token first before managing wallet exemptions.
+
+Use /launch to create your first token!
+        `, { parse_mode: 'Markdown' });
+        return;
+    }
+
+    if (params) {
+        // Parse parameters: /exempt_wallet [token_number] [wallet_id] [add|remove]
+        try {
+            const parts = params.split(/\s+/);
+            if (parts.length !== 3) {
+                throw new Error('Invalid parameter count');
+            }
+            
+            const tokenIndex = parseInt(parts[0]) - 1;
+            const walletId = parseInt(parts[1]);
+            const action = parts[2].toLowerCase();
+            
+            if (tokenIndex < 0 || tokenIndex >= createdTokens.length) {
+                throw new Error('Invalid token number');
+            }
+            
+            if (walletId < 1 || walletId > 5) {
+                throw new Error('Invalid wallet ID (must be 1-5)');
+            }
+            
+            if (action !== 'add' && action !== 'remove') {
+                throw new Error('Action must be "add" or "remove"');
+            }
+            
+            const selectedToken = createdTokens[tokenIndex];
+            updateWalletExemption(chatId, selectedToken.mintAddress, walletId, action);
+            
+        } catch (error) {
+            bot.sendMessage(chatId, `
+❌ *Invalid Parameters*
+
+💼 *WALLET TAX EXEMPTION*
+
+Usage: \`/exempt_wallet [token_number] [wallet_id] [add|remove]\`
+
+Example: \`/exempt_wallet 1 2 add\`
+- Token: 1 (first token)
+- Wallet: 2 (Wallet 2)
+- Action: add (exempt from fees)
+
+**Actions:**
+• \`add\` - Exempt wallet from all fees
+• \`remove\` - Remove exemption (apply fees)
+
+**Wallet IDs:** 1, 2, 3, 4, 5
+
+Or use /exempt_wallet without parameters for interactive setup.
+            `, { parse_mode: 'Markdown' });
+        }
+    } else {
+        // Interactive mode
+        showWalletExemptionMenu(chatId);
+    }
+}
+
+function showWalletExemptionMenu(chatId) {
+    const createdTokens = Array.from(tokenManager.getAllTokens());
+    
+    if (createdTokens.length === 1) {
+        // If only one token, go directly to wallet selection
+        showWalletSelectionMenu(chatId, createdTokens[0].mintAddress);
+        return;
+    }
+    
+    const tokenButtons = createdTokens.map((token, index) => {
+        const fees = botState.dynamicFees.get(token.mintAddress);
+        const exemptCount = fees && fees.exemptWallets ? fees.exemptWallets.size : 0;
+        
+        return [{
+            text: `💼 ${token.name} (${exemptCount} exempt)`,
+            callback_data: `exempt_token_${token.mintAddress}`
+        }];
+    });
+    
+    bot.sendMessage(chatId, `
+💼 *WALLET TAX EXEMPTION SYSTEM*
+
+**⚠️ DEVNET RESEARCH ONLY ⚠️**
+
+Select a token to manage wallet exemptions:
+
+**Purpose:** Control which wallets pay trading fees
+**Benefits:** 
+• Exempt dev wallets from fees
+• Reward loyal holders
+• Create VIP trading tiers
+• Research fee impact patterns
+
+**Current Status:** Showing exempt wallet count per token
+    `, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                ...tokenButtons,
+                [{ text: '❌ Cancel', callback_data: 'cancel_exemption' }]
+            ]
+        }
+    });
+}
+
+function showWalletSelectionMenu(chatId, tokenMint) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    const fees = botState.dynamicFees.get(tokenMint) || { buyFee: 0, sellFee: 0, exemptWallets: new Set() };
+    
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    // Create wallet status buttons
+    const walletButtons = [];
+    for (let i = 1; i <= 5; i++) {
+        const isExempt = fees.exemptWallets.has(i);
+        const statusIcon = isExempt ? '💼' : '💰';
+        const statusText = isExempt ? 'EXEMPT' : 'TAXED';
+        
+        walletButtons.push([{
+            text: `${statusIcon} Wallet ${i} (${statusText})`,
+            callback_data: `toggle_exempt_${tokenMint}_${i}`
+        }]);
+    }
+
+    const message = `
+💼 *WALLET EXEMPTION MANAGEMENT*
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+
+📊 **Current Fee Structure:**
+• Buy Fee: ${fees.buyFee}%
+• Sell Fee: ${fees.sellFee}%
+
+**Wallet Status:**
+💼 = Fee Exempt (no taxes applied)
+💰 = Fee Applied (normal taxes)
+
+**Click wallet to toggle exemption status:**
+    `;
+
+    bot.sendMessage(chatId, message, {
+        parse_mode: 'Markdown',
+        reply_markup: {
+            inline_keyboard: [
+                ...walletButtons,
+                [
+                    { text: '📊 View Summary', callback_data: `exemption_summary_${tokenMint}` },
+                    { text: '❌ Cancel', callback_data: 'cancel_exemption' }
+                ]
+            ]
+        }
+    });
+}
+
+function updateWalletExemption(chatId, tokenMint, walletId, action) {
+    const tokenInfo = tokenManager.getToken(tokenMint);
+    
+    if (!tokenInfo) {
+        bot.sendMessage(chatId, '❌ Token not found');
+        return;
+    }
+
+    // Get or create fee structure
+    let fees = botState.dynamicFees.get(tokenMint);
+    if (!fees) {
+        fees = {
+            buyFee: 0,
+            sellFee: 0,
+            enabled: true,
+            exemptWallets: new Set(),
+            updatedAt: new Date().toISOString()
+        };
+        botState.dynamicFees.set(tokenMint, fees);
+    }
+
+    if (!fees.exemptWallets) {
+        fees.exemptWallets = new Set();
+    }
+
+    const wasExempt = fees.exemptWallets.has(walletId);
+    
+    if (action === 'add') {
+        if (!wasExempt) {
+            fees.exemptWallets.add(walletId);
+            fees.updatedAt = new Date().toISOString();
+            
+            bot.sendMessage(chatId, `
+✅ *Wallet Exemption Added*
+
+💼 **RESEARCH MODE - DEVNET ONLY**
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+💼 **Wallet:** ${walletId} → **FEE EXEMPT**
+
+📊 **Impact:**
+• Buy Fee: ${fees.buyFee}% → **0% (EXEMPT)**
+• Sell Fee: ${fees.sellFee}% → **0% (EXEMPT)**
+• Wallet ${walletId} will not pay any trading fees
+
+🎯 **Research Benefits:**
+• Study impact of exempting specific wallets
+• Create VIP trading tiers for testing
+• Analyze fee avoidance patterns
+• Test incentive structures
+
+💡 **Current Exempt Wallets:** ${Array.from(fees.exemptWallets).join(', ')}
+            `, { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '💼 Manage More Wallets', callback_data: `exempt_token_${tokenMint}` },
+                            { text: '📈 Start Trading', callback_data: 'start_trading' }
+                        ]
+                    ]
+                }
+            });
+        } else {
+            bot.sendMessage(chatId, `
+⚠️ **Wallet Already Exempt**
+
+💼 Wallet ${walletId} is already exempt from fees for ${tokenInfo.name} (${tokenInfo.symbol})
+
+Current exempt wallets: ${Array.from(fees.exemptWallets).join(', ')}
+            `, { parse_mode: 'Markdown' });
+        }
+    } else if (action === 'remove') {
+        if (wasExempt) {
+            fees.exemptWallets.delete(walletId);
+            fees.updatedAt = new Date().toISOString();
+            
+            bot.sendMessage(chatId, `
+❌ *Wallet Exemption Removed*
+
+💰 **RESEARCH MODE - DEVNET ONLY**
+
+🪙 **Token:** ${tokenInfo.name} (${tokenInfo.symbol})
+💰 **Wallet:** ${walletId} → **FEE APPLIED**
+
+📊 **Impact:**
+• Buy Fee: 0% (exempt) → **${fees.buyFee}% (APPLIED)**
+• Sell Fee: 0% (exempt) → **${fees.sellFee}% (APPLIED)**
+• Wallet ${walletId} will now pay normal trading fees
+
+🎯 **Research Impact:**
+• Wallet will contribute to fee collection
+• Normal trading behavior patterns resume
+• Fee revenue from this wallet restored
+
+💡 **Remaining Exempt Wallets:** ${Array.from(fees.exemptWallets).join(', ') || 'None'}
+            `, { 
+                parse_mode: 'Markdown',
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: '💼 Manage More Wallets', callback_data: `exempt_token_${tokenMint}` },
+                            { text: '📈 Start Trading', callback_data: 'start_trading' }
+                        ]
+                    ]
+                }
+            });
+        } else {
+            bot.sendMessage(chatId, `
+⚠️ **Wallet Not Exempt**
+
+💰 Wallet ${walletId} is already paying fees for ${tokenInfo.name} (${tokenInfo.symbol})
+
+Current exempt wallets: ${Array.from(fees.exemptWallets).join(', ') || 'None'}
+            `, { parse_mode: 'Markdown' });
+        }
+    }
+
+    console.log(`💼 RESEARCH: Updated wallet ${walletId} exemption for ${tokenInfo.symbol} - Action: ${action}`);
+}
     const tokenInfo = tokenManager.getToken(tokenMint);
     
     if (!tokenInfo) {
