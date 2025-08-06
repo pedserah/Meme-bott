@@ -67,8 +67,9 @@ Available Commands:
 🚀 /launch - Launch new meme coin with metadata ✅ ENHANCED
 🤖 /auto_brand - AI-powered brand generation ✅ NEW
 🎯 /auto_name - AI-powered name generation ✅ NEW
-🔴 /auto_rug - Automated rugpull with conditions ✅ NEW
-🔬 /set_fees - RESEARCH: Set dynamic buy/sell fees ✅ NEW
+🔒 /lock_liquidity - Lock 100% liquidity for 1 year ✅ NEW
+📊 /verify_lock - Verify lock status on DexScreener ✅ NEW
+🛡️ /revoke_mint - Permanently disable mint authority ✅ NEW
 🌱 /seed_wallets - Equalize SOL balance across all wallets ✅ UPDATED
 🏊 /create_pool - Create Raydium pool ✅ NEW
 📈 /start_trading - Start automated trading ✅ REAL SWAPS
