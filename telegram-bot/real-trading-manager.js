@@ -7,6 +7,7 @@ class RealTradingManager {
         // Trading state
         this.isTrading = false;
         this.tradingInterval = null;
+        this.chartActivityInterval = null; // For periodic small trades
         this.currentToken = null;
         this.tradingStats = {
             totalTrades: 0,
@@ -216,6 +217,12 @@ class RealTradingManager {
             clearTimeout(this.tradingInterval);
             this.tradingInterval = null;
         }
+        
+        // Also stop chart activity if running
+        if (this.chartActivityInterval) {
+            clearInterval(this.chartActivityInterval);
+            this.chartActivityInterval = null;
+        }
 
         return {
             success: true,
@@ -322,6 +329,149 @@ class RealTradingManager {
     // Format trade result for Telegram (delegates to RaydiumManager)
     formatTradeForTelegram(tradeResult) {
         return this.raydiumManager.formatTradeForTelegram(tradeResult);
+    }
+
+    // Start chart activity simulation - periodic small trades
+    startChartActivity(tokenMint, intervalMinutes = 10) {
+        if (this.chartActivityInterval) {
+            clearInterval(this.chartActivityInterval);
+        }
+
+        console.log(`📈 Starting chart activity simulation for ${tokenMint} (every ${intervalMinutes}m)`);
+        
+        this.currentToken = tokenMint;
+        
+        // Execute first trade immediately
+        this.executeChartActivityTrade();
+        
+        // Then schedule periodic trades
+        this.chartActivityInterval = setInterval(() => {
+            this.executeChartActivityTrade();
+        }, intervalMinutes * 60 * 1000); // Convert to milliseconds
+
+        return {
+            success: true,
+            message: `Chart activity started - trades every ${intervalMinutes} minutes`
+        };
+    }
+
+    // Execute a single chart activity trade (smaller amounts)
+    async executeChartActivityTrade() {
+        if (!this.currentToken) return;
+
+        try {
+            // Generate a very small trade for chart activity
+            const trade = await this.generateChartActivityTrade();
+            
+            if (trade.type === 'BUY') {
+                console.log(`📈 Chart activity BUY: ${trade.amount} SOL from wallet ${trade.walletId}`);
+                
+                const result = await this.raydiumManager.executeBuySwap(
+                    this.currentToken,
+                    trade.amount,
+                    trade.walletId
+                );
+
+                if (result.success) {
+                    console.log(`✅ Chart activity buy successful: ${result.tokensReceived} tokens`);
+                } else {
+                    console.log(`❌ Chart activity buy failed: ${result.error}`);
+                }
+            } else {
+                console.log(`📈 Chart activity SELL: ${trade.amount} tokens from wallet ${trade.walletId}`);
+                
+                const result = await this.raydiumManager.executeSellSwap(
+                    this.currentToken,
+                    trade.amount,
+                    trade.walletId
+                );
+
+                if (result.success) {
+                    console.log(`✅ Chart activity sell successful: ${result.solReceived} SOL`);
+                } else {
+                    console.log(`❌ Chart activity sell failed: ${result.error}`);
+                }
+            }
+        } catch (error) {
+            console.error(`❌ Chart activity trade error: ${error.message}`);
+        }
+    }
+
+    // Generate small random trade for chart activity (smaller than regular trading)
+    async generateChartActivityTrade() {
+        // 60% buy, 40% sell for more chart activity
+        const isBuy = Math.random() < 0.6;
+        
+        // Use wallets 2-5
+        const availableWallets = [2, 3, 4, 5];
+        const walletId = availableWallets[Math.floor(Math.random() * availableWallets.length)];
+        
+        if (isBuy) {
+            // Very small SOL amounts for chart activity: 0.005 to 0.02 SOL
+            const solAmount = 0.005 + Math.random() * 0.015;
+            return {
+                type: 'BUY',
+                walletId,
+                amount: solAmount
+            };
+        } else {
+            // Check if wallet has tokens for selling
+            try {
+                const tokenBalance = await this.getTokenBalance(this.currentToken, walletId);
+                
+                if (tokenBalance <= 0) {
+                    // No tokens, make it a small buy instead
+                    const solAmount = 0.005 + Math.random() * 0.015;
+                    return {
+                        type: 'BUY',
+                        walletId,
+                        amount: solAmount
+                    };
+                }
+
+                // Sell small percentage of balance: 5-15%
+                const sellAmount = tokenBalance * (0.05 + Math.random() * 0.1);
+                return {
+                    type: 'SELL',
+                    walletId,
+                    amount: sellAmount
+                };
+            } catch (error) {
+                // Error checking balance, default to small buy
+                const solAmount = 0.005 + Math.random() * 0.015;
+                return {
+                    type: 'BUY',
+                    walletId,
+                    amount: solAmount
+                };
+            }
+        }
+    }
+
+    // Stop chart activity simulation
+    stopChartActivity() {
+        if (this.chartActivityInterval) {
+            clearInterval(this.chartActivityInterval);
+            this.chartActivityInterval = null;
+            console.log('📈 Chart activity simulation stopped');
+            return {
+                success: true,
+                message: 'Chart activity simulation stopped'
+            };
+        }
+        
+        return {
+            success: false,
+            error: 'Chart activity is not running'
+        };
+    }
+
+    // Get chart activity status
+    getChartActivityStatus() {
+        return {
+            isActive: this.chartActivityInterval !== null,
+            currentToken: this.currentToken
+        };
     }
 }
 

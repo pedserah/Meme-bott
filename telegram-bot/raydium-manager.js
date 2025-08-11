@@ -536,14 +536,35 @@ class RaydiumManager {
     getAllPools() {
         return Array.from(this.createdPools.values());
     }
-    
-    getPool(tokenMint) {
-        return this.createdPools.get(tokenMint);
-    }
 
     // Check if pool exists for token
     hasPool(tokenMint) {
         return this.createdPools.has(tokenMint);
+    }
+
+    // Get pool info for a specific token
+    getPool(tokenMint) {
+        return this.createdPools.get(tokenMint);
+    }
+
+    // Get pool info (alias for backward compatibility)
+    getPoolInfo(tokenMint) {
+        return this.createdPools.get(tokenMint);
+    }
+
+    // Set liquidity lock information
+    setLiquidityLock(tokenMint, lockInfo) {
+        const pool = this.createdPools.get(tokenMint);
+        if (pool) {
+            pool.liquidityLock = lockInfo;
+            this.createdPools.set(tokenMint, pool);
+        }
+    }
+
+    // Get liquidity lock information
+    getLiquidityLock(tokenMint) {
+        const pool = this.createdPools.get(tokenMint);
+        return pool ? pool.liquidityLock : null;
     }
 
     // Format pool info for Telegram

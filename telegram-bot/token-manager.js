@@ -21,20 +21,17 @@ const {
     mintTo
 } = require('@solana/spl-token');
 
-const MetadataManager = require('./metadata-manager');
-
 class TokenManager {
     constructor(connection, walletManager) {
         this.connection = connection;
         this.walletManager = walletManager;
         this.createdTokens = new Map(); // Store created tokens
-        this.metadataManager = new MetadataManager();
     }
 
-    // Create a new SPL token with enhanced metadata
+    // Create a new SPL token with metadata
     async createToken(tokenName, ticker, totalSupply, description, imageUrl, createdBy) {
         try {
-            console.log(`🚀 Creating token: ${tokenName} (${ticker}) with enhanced metadata...`);
+            console.log(`🚀 Creating token: ${tokenName} (${ticker}) with metadata...`);
             
             // Get the first wallet (wallet[0] in user's terminology)
             const mintAuthority = this.walletManager.getWallet(1);
@@ -44,30 +41,7 @@ class TokenManager {
 
             console.log(`💰 Using wallet 1 as mint authority: ${mintAuthority.publicKey}`);
 
-            // Step 1: Create complete metadata with DALL·E generated image + IPFS
-            console.log('🎨 Starting enhanced metadata creation with retries...');
-            const metadataResult = await this.metadataManager.createCompleteTokenMetadata({
-                name: tokenName,
-                symbol: ticker, 
-                description: description,
-                totalSupply: totalSupply,
-                creator: mintAuthority.publicKey.toString()
-            });
-
-            let finalImageUrl = imageUrl || '';
-            let finalMetadataUri = null;
-
-            if (metadataResult.success) {
-                console.log('✅ Enhanced metadata creation successful!');
-                console.log(`📊 Retry attempts: Image(${metadataResult.retryAttempts.imageGeneration}), Upload(${metadataResult.retryAttempts.imageUpload}), Metadata(${metadataResult.retryAttempts.metadataUpload})`);
-                finalImageUrl = metadataResult.httpImageUrl;
-                finalMetadataUri = metadataResult.metadataIpfsUrl;
-            } else {
-                console.warn('⚠️ Enhanced metadata creation failed:', metadataResult.error);
-                console.log('📊 Proceeding with basic token creation');
-            }
-
-            // Step 2: Create the mint
+            // Step 1: Create the mint
             console.log('📄 Creating mint...');
             
             const mint = await createMint(
@@ -80,7 +54,7 @@ class TokenManager {
 
             console.log(`✅ Mint created: ${mint.toString()}`);
 
-            // Step 3: Get or create associated token account for wallet 1
+            // Step 2: Get or create associated token account for wallet 1
             console.log('🏦 Creating associated token account...');
             const tokenAccount = await getOrCreateAssociatedTokenAccount(
                 this.connection,
@@ -91,9 +65,10 @@ class TokenManager {
 
             console.log(`✅ Token account created: ${tokenAccount.address.toString()}`);
 
-            // Step 4: Mint the total supply to wallet 1
-            console.log(`🪙 Minting ${totalSupply} tokens...`);
-            const mintAmount = totalSupply * Math.pow(10, 9); // Convert to smallest unit (9 decimals)
+            // Step 3: Mint tokens - 20% to Wallet 1, rest for trading/pool
+            console.log(`🪙 Minting tokens - 20% to Wallet 1 for pool operations...`);
+            const wallet1Share = totalSupply * 0.2; // 20% to Wallet 1
+            const mintAmount = wallet1Share * Math.pow(10, 9); // Convert to smallest unit (9 decimals)
             
             const mintSignature = await mintTo(
                 this.connection,
@@ -104,27 +79,28 @@ class TokenManager {
                 mintAmount
             );
 
-            console.log(`✅ Minted ${totalSupply} tokens with signature: ${mintSignature}`);
+            console.log(`✅ Minted ${wallet1Share} tokens (20% of supply) to Wallet 1 with signature: ${mintSignature}`);
 
-            // Step 5: Apply Metaplex metadata if available
-            let metaplexResult = null;
-            if (finalMetadataUri) {
-                try {
-                    console.log('📝 Applying Metaplex metadata on-chain...');
-                    metaplexResult = await this.applyMetaplexMetadata(
-                        mint,
-                        mintAuthority.keypair,
-                        tokenName,
-                        ticker,
-                        finalMetadataUri
-                    );
-                    console.log('✅ Metaplex metadata applied successfully');
-                } catch (metaplexError) {
-                    console.warn('⚠️ Metaplex metadata application failed:', metaplexError.message);
-                }
+            // Step 4: Create metadata (for devnet, we'll simulate this)
+            console.log('📝 Creating token metadata...');
+            let metadataResult = null;
+            
+            try {
+                metadataResult = await this.createTokenMetadata(
+                    mint,
+                    mintAuthority.keypair,
+                    tokenName,
+                    ticker,
+                    description,
+                    imageUrl
+                );
+                console.log('✅ Metadata created successfully');
+            } catch (metadataError) {
+                console.warn('⚠️ Metadata creation failed (continuing without):', metadataError.message);
+                // Continue without metadata - token is still functional
             }
 
-            // Store token information with enhanced metadata
+            // Store token information
             const tokenInfo = {
                 name: tokenName,
                 symbol: ticker,
@@ -132,71 +108,22 @@ class TokenManager {
                 totalSupply: totalSupply,
                 decimals: 9,
                 description: description || '',
-                imageUrl: finalImageUrl,
-                generatedImageUrl: metadataResult.success ? metadataResult.generatedImageUrl : null,
-                ipfsImageUrl: metadataResult.success ? metadataResult.ipfsImageUrl : null,
-                httpImageUrl: metadataResult.success ? metadataResult.httpImageUrl : null,
-                metadataIpfsUrl: metadataResult.success ? metadataResult.metadataIpfsUrl : null,
-                metadataHttpUrl: metadataResult.success ? metadataResult.metadataHttpUrl : null,
+                imageUrl: imageUrl || '',
                 mintAuthority: mintAuthority.publicKey,
                 tokenAccount: tokenAccount.address.toString(),
                 mintSignature: mintSignature,
                 metadataResult: metadataResult,
-                metaplexResult: metaplexResult,
                 createdAt: new Date().toISOString(),
                 createdBy: createdBy
             };
 
             this.createdTokens.set(mint.toString(), tokenInfo);
 
-            // Log summary
-            if (metadataResult.success) {
-                console.log('🎉 Enhanced token creation complete with full metadata!');
-                console.log(`📸 Generated image: ${metadataResult.generatedImageUrl ? 'Yes' : 'No'}`);
-                console.log(`🌐 IPFS image: ${metadataResult.ipfsImageUrl || 'None'}`);
-                console.log(`📋 IPFS metadata: ${metadataResult.metadataIpfsUrl || 'None'}`);
-            } else {
-                console.log('🎉 Token creation complete with basic metadata');
-                console.log(`❌ Image generation failed after retries: ${metadataResult.error}`);
-            }
-
+            console.log('🎉 Token creation complete with metadata!');
             return tokenInfo;
 
         } catch (error) {
-            console.error('❌ Enhanced token creation failed:', error);
-            throw error;
-        }
-    }
-
-    // Apply Metaplex metadata on-chain (simplified for devnet)
-    async applyMetaplexMetadata(mint, payer, name, symbol, metadataUri) {
-        try {
-            console.log(`📝 Applying Metaplex metadata for ${symbol}...`);
-            console.log('🔗 Metadata URI:', metadataUri);
-            
-            // For devnet testing, we'll simulate Metaplex metadata application
-            // In production, this would use actual Metaplex metadata instructions
-            
-            // Simulate metadata application delay
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            
-            // Create mock metadata PDA address
-            const metadataPDA = Keypair.generate().publicKey;
-            
-            // Mock metadata application transaction
-            const mockSignature = Keypair.generate().publicKey.toString();
-            
-            console.log(`✅ Metaplex metadata applied: ${metadataPDA.toString()}`);
-
-            return {
-                metadataPDA: metadataPDA.toString(),
-                signature: mockSignature,
-                metadataUri: metadataUri,
-                applied: true
-            };
-
-        } catch (error) {
-            console.error('❌ Metaplex metadata application error:', error);
+            console.error('❌ Token creation failed:', error);
             throw error;
         }
     }

@@ -115,70 +115,6 @@ class WalletManager {
         return message;
     }
 
-    // Transfer SOL between wallets
-    async transferSOL(fromWalletId, toWalletId, amountSOL) {
-        const fromWallet = this.getWallet(fromWalletId);
-        const toWallet = this.getWallet(toWalletId);
-
-        if (!fromWallet) {
-            throw new Error(`Source wallet ${fromWalletId} not found`);
-        }
-        if (!toWallet) {
-            throw new Error(`Destination wallet ${toWalletId} not found`);
-        }
-
-        try {
-            console.log(`💸 Transferring ${amountSOL} SOL from wallet ${fromWalletId} to wallet ${toWalletId}...`);
-
-            // Check if source wallet has enough balance
-            await this.updateBalances();
-            if (fromWallet.balance < amountSOL) {
-                throw new Error(`Insufficient balance. Wallet ${fromWalletId} has ${fromWallet.balance.toFixed(4)} SOL, need ${amountSOL} SOL`);
-            }
-
-            // Create transfer transaction
-            const transaction = new Transaction().add(
-                SystemProgram.transfer({
-                    fromPubkey: fromWallet.keypair.publicKey,
-                    toPubkey: toWallet.keypair.publicKey,
-                    lamports: Math.floor(amountSOL * LAMPORTS_PER_SOL)
-                })
-            );
-
-            // Send and confirm transaction
-            const signature = await sendAndConfirmTransaction(
-                this.connection,
-                transaction,
-                [fromWallet.keypair]
-            );
-
-            // Update balances after transaction
-            await this.updateBalances();
-
-            console.log(`✅ SOL transfer completed: ${signature}`);
-
-            return {
-                success: true,
-                fromWallet: fromWalletId,
-                toWallet: toWalletId,
-                amount: amountSOL,
-                signature: signature,
-                newFromBalance: fromWallet.balance,
-                newToBalance: toWallet.balance
-            };
-
-        } catch (error) {
-            console.error(`❌ SOL transfer failed from wallet ${fromWalletId} to ${toWalletId}:`, error.message);
-            return {
-                success: false,
-                fromWallet: fromWalletId,
-                toWallet: toWalletId,
-                amount: amountSOL,
-                error: error.message
-            };
-        }
-    }
-
     // Request devnet SOL airdrop for testing
     async requestAirdrop(walletId, amount = 1) {
         const wallet = this.getWallet(walletId);
@@ -210,6 +146,144 @@ class WalletManager {
                 success: false,
                 error: error.message
             };
+        }
+    }
+
+    // Transfer SOL between wallets
+    async transferSOL(fromWalletId, toWalletId, amount) {
+        const fromWallet = this.getWallet(fromWalletId);
+        const toWallet = this.getWallet(toWalletId);
+        
+        if (!fromWallet) {
+            throw new Error(`From wallet ${fromWalletId} not found`);
+        }
+        if (!toWallet) {
+            throw new Error(`To wallet ${toWalletId} not found`);
+        }
+
+        try {
+            console.log(`💸 Transferring ${amount} SOL from wallet ${fromWalletId} to wallet ${toWalletId}...`);
+
+            // Check SOL balance
+            const fromBalance = await this.connection.getBalance(fromWallet.keypair.publicKey);
+            const fromBalanceSOL = fromBalance / LAMPORTS_PER_SOL;
+            
+            if (fromBalanceSOL < amount) {
+                throw new Error(`Insufficient SOL balance. Need ${amount}, have ${fromBalanceSOL.toFixed(4)}`);
+            }
+
+            // Create transfer transaction
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: fromWallet.keypair.publicKey,
+                    toPubkey: toWallet.keypair.publicKey,
+                    lamports: Math.floor(amount * LAMPORTS_PER_SOL)
+                })
+            );
+
+            // Send and confirm transaction
+            const signature = await sendAndConfirmTransaction(
+                this.connection,
+                transaction,
+                [fromWallet.keypair]
+            );
+
+            console.log(`✅ SOL transfer completed: ${signature}`);
+
+            // Update balances
+            await this.updateBalances();
+
+            return {
+                success: true,
+                signature: signature,
+                fromWallet: fromWalletId,
+                toWallet: toWalletId,
+                amount: amount,
+                newFromBalance: (await this.connection.getBalance(fromWallet.keypair.publicKey)) / LAMPORTS_PER_SOL,
+                newToBalance: (await this.connection.getBalance(toWallet.keypair.publicKey)) / LAMPORTS_PER_SOL
+            };
+
+        } catch (error) {
+            console.error(`❌ SOL transfer failed:`, error);
+            throw error;
+        }
+    }
+
+    // Equalize SOL across wallets 2-5 from wallet 1
+    async equalizeSOLAcrossWallets(reserveAmount = 0.5) {
+        try {
+            console.log('⚖️ Equalizing SOL across wallets 2-5...');
+
+            // Get current balances
+            await this.updateBalances();
+            
+            const wallet1 = this.getWallet(1);
+            if (!wallet1) {
+                throw new Error('Wallet 1 not found');
+            }
+
+            const wallet1Balance = wallet1.balance;
+            console.log(`💰 Wallet 1 balance: ${wallet1Balance.toFixed(4)} SOL`);
+
+            if (wallet1Balance < reserveAmount) {
+                throw new Error(`Insufficient SOL in wallet 1. Need at least ${reserveAmount} SOL for operations, have ${wallet1Balance.toFixed(4)} SOL`);
+            }
+
+            // Calculate amount to distribute
+            const availableForDistribution = wallet1Balance - reserveAmount;
+            const amountPerWallet = availableForDistribution / 4; // Distribute to wallets 2-5
+
+            if (amountPerWallet <= 0) {
+                throw new Error(`Not enough SOL to distribute. Available: ${availableForDistribution.toFixed(4)} SOL`);
+            }
+
+            console.log(`📊 Distributing ${amountPerWallet.toFixed(4)} SOL to each wallet (2-5)`);
+            console.log(`💰 Keeping ${reserveAmount} SOL in wallet 1 for operations`);
+
+            const results = [];
+
+            // Transfer to wallets 2-5
+            for (let walletId = 2; walletId <= 5; walletId++) {
+                try {
+                    const result = await this.transferSOL(1, walletId, amountPerWallet);
+                    results.push({
+                        walletId: walletId,
+                        success: true,
+                        amount: amountPerWallet,
+                        signature: result.signature,
+                        newBalance: result.newToBalance
+                    });
+                    console.log(`✅ Wallet ${walletId}: ${amountPerWallet.toFixed(4)} SOL transferred`);
+                } catch (error) {
+                    console.error(`❌ Failed to transfer to wallet ${walletId}:`, error.message);
+                    results.push({
+                        walletId: walletId,
+                        success: false,
+                        error: error.message,
+                        amount: amountPerWallet
+                    });
+                }
+            }
+
+            // Update final balances
+            await this.updateBalances();
+
+            const successfulTransfers = results.filter(r => r.success).length;
+            const totalDistributed = successfulTransfers * amountPerWallet;
+
+            return {
+                success: true,
+                reserveAmount: reserveAmount,
+                amountPerWallet: amountPerWallet,
+                totalDistributed: totalDistributed,
+                successfulTransfers: successfulTransfers,
+                results: results,
+                finalWallet1Balance: this.getWallet(1).balance
+            };
+
+        } catch (error) {
+            console.error('❌ SOL equalization failed:', error);
+            throw error;
         }
     }
 }
