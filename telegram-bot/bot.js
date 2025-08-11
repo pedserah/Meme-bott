@@ -1371,15 +1371,15 @@ bot.onText(/\/launch/, (msg) => {
 });
 
 function startTokenCreation(chatId, userId) {
-    // Initialize user session
-    botState.userSessions.set(userId, {
-        step: 'waiting_for_name',
-        chatId: chatId,
-        tokenData: {}
-    });
+    try {
+        // Initialize user session
+        botState.userSessions.set(userId, {
+            step: 'waiting_for_name',
+            chatId: chatId,
+            tokenData: {}
+        });
 
-    const message = `
-🚀 *Create New Meme Coin* - Enhanced Flow
+        const message = `🚀 *Create New Meme Coin* - Enhanced Flow
 
 Let's launch your token with full metadata on Solana devnet!
 
@@ -1389,17 +1389,40 @@ Let's launch your token with full metadata on Solana devnet!
 💡 *Tips:*
 - Keep it catchy and memorable
 - Max 32 characters
-- Can include spaces and special characters
-    `;
+- Can include spaces and special characters`;
 
-    bot.sendMessage(chatId, message, { 
-        parse_mode: 'Markdown',
-        reply_markup: {
-            inline_keyboard: [
-                [{ text: '❌ Cancel', callback_data: 'cancel_launch' }]
-            ]
-        }
-    });
+        bot.sendMessage(chatId, message, { 
+            parse_mode: 'Markdown',
+            reply_markup: {
+                inline_keyboard: [
+                    [{ text: '❌ Cancel', callback_data: 'cancel_launch' }]
+                ]
+            }
+        }).catch(error => {
+            console.error('❌ Error sending launch message:', error);
+            // Fallback without markdown
+            bot.sendMessage(chatId, `🚀 Create New Meme Coin - Enhanced Flow
+
+Let's launch your token with full metadata on Solana devnet!
+
+Step 1/5: Please enter your token name
+(Example: "Doge Killer", "Moon Token")
+
+Tips:
+- Keep it catchy and memorable
+- Max 32 characters
+- Can include spaces and special characters`, {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: '❌ Cancel', callback_data: 'cancel_launch' }]
+                    ]
+                }
+            });
+        });
+    } catch (error) {
+        console.error('❌ Launch token error:', error);
+        bot.sendMessage(chatId, '❌ Error starting token creation. Please try /launch command instead.');
+    }
 }
 
 // Handle text messages for token creation flow
