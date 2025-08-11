@@ -58,11 +58,13 @@ Available Commands:
 💰 /wallets - Show wallet balances
 🪂 /airdrop \\[wallet_number\\] - Request devnet SOL
 🚀 /launch - Launch new meme coin with metadata
+🎨 /auto_brand - Generate AI token branding (Craiyon)
 🌱 /seed_wallets - Distribute SOL to trading wallets
 🏊 /create_pool - Create Raydium pool
 🔒 /liquidity_lock - Lock liquidity for 1 month
 💸 /set_fees - Set buy/sell tax rates (SOL-based)
 🚫 /exempt_wallet - Exempt wallet from taxes
+📈 /chart_activity - Start/stop chart activity simulation
 🧪 /mint_rugpull - Simulate mint + sell (devnet research)
 📈 /start_trading - Start automated trading
 ⏸️ /stop_trading - Stop automated trading
