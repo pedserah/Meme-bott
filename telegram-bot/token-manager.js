@@ -79,7 +79,11 @@ class TokenManager {
                 mintAmount
             );
 
-            console.log(`✅ Minted ${wallet1Share} tokens (20% of supply) to Wallet 1 with signature: ${mintSignature}`);
+            console.log(`✅ Minted ${wallet1Share} tokens (20% of total supply) to Wallet 1 with signature: ${mintSignature}`);
+            
+            // Store remaining 80% info for pool creation
+            const remainingSupply = totalSupply - wallet1Share;
+            console.log(`📊 Token Distribution: Wallet 1: ${wallet1Share} (20%) | Reserved for pool: ${remainingSupply} (80%)`);
 
             // Step 4: Create metadata (for devnet, we'll simulate this)
             console.log('📝 Creating token metadata...');
