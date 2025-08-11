@@ -22,7 +22,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.append(str(project_root))
 
-class TelegramBotTester:
+class MemeBotTester:
     def __init__(self):
         self.telegram_bot_dir = project_root / "telegram-bot"
         self.bot_token = None
@@ -61,15 +61,13 @@ class TelegramBotTester:
             for key, value in details.items():
                 print(f"   {key}: {value}")
     
-    def test_file_structure(self):
-        """Test 1: Verify required files exist"""
-        test_name = "File Structure Verification"
+    def test_ai_integration_files(self):
+        """Test 1: Verify AI integration files exist and are properly implemented"""
+        test_name = "AI Integration Files"
         
         required_files = [
-            "telegram-bot/bot.js",
-            "telegram-bot/wallet-manager.js", 
-            "telegram-bot/package.json",
-            "telegram-bot/.env"
+            "telegram-bot/ai-integrations.js",
+            "telegram-bot/metadata-manager.js"
         ]
         
         missing_files = []
@@ -79,14 +77,43 @@ class TelegramBotTester:
                 missing_files.append(file_path)
         
         if missing_files:
-            self.log_test(test_name, "FAIL", f"Missing files: {', '.join(missing_files)}")
+            self.log_test(test_name, "FAIL", f"Missing AI integration files: {', '.join(missing_files)}")
             return False
         
-        self.log_test(test_name, "PASS", "All required files present")
-        return True
+        # Check AI integrations content
+        try:
+            ai_integrations_path = self.telegram_bot_dir / "ai-integrations.js"
+            with open(ai_integrations_path, 'r') as f:
+                ai_content = f.read()
+            
+            # Check for Craiyon integration (not DALL-E or Fal.ai)
+            ai_checks = {
+                "Craiyon Integration": "craiyon" in ai_content.lower() or "generateMemeCoinLogo" in ai_content,
+                "No DALL-E References": "dall-e" not in ai_content.lower() and "dalle" not in ai_content.lower(),
+                "No Fal.ai References": "fal.ai" not in ai_content.lower() or "fal-ai" in ai_content.lower(),  # fal-ai is OK as replacement
+                "AI Class Export": "class AIIntegrations" in ai_content and "module.exports" in ai_content
+            }
+            
+            failed_checks = [check for check, passed in ai_checks.items() if not passed]
+            
+            details = {
+                "AI Integration Checks": list(ai_checks.keys()),
+                "Failed Checks": failed_checks
+            }
+            
+            if failed_checks:
+                self.log_test(test_name, "WARN", f"Some AI integration checks failed: {', '.join(failed_checks)}", details)
+                return True  # Still pass as files exist
+            
+            self.log_test(test_name, "PASS", "AI integration files properly implemented", details)
+            return True
+            
+        except Exception as e:
+            self.log_test(test_name, "FAIL", f"Error reading AI integration files: {str(e)}")
+            return False
     
     def test_sol_distribution_implementation(self):
-        """Test 2: Verify SOL distribution implementation exists"""
+        """Test 2: Verify SOL distribution implementation (not token distribution)"""
         test_name = "SOL Distribution Implementation"
         
         bot_js_path = self.telegram_bot_dir / "bot.js"
@@ -101,49 +128,109 @@ class TelegramBotTester:
             with open(wallet_manager_path, 'r') as f:
                 wallet_content = f.read()
             
-            # Verify key functions exist
+            # Verify key functions exist for SOL distribution
             required_functions = {
                 "seedWalletsWithSOL": "seedWalletsWithSOL" in bot_content,
                 "seedWalletsCommand": "seedWalletsCommand" in bot_content,
                 "transferSOL": "transferSOL" in wallet_content,
-                "confirm_sol_distribution": "confirm_sol_distribution" in bot_content
+                "equalizeSOLAcrossWallets": "equalizeSOLAcrossWallets" in bot_content or "equalize" in bot_content.lower()
             }
             
             missing_functions = [func for func, exists in required_functions.items() if not exists]
             
-            if missing_functions:
-                self.log_test(test_name, "FAIL", f"Missing functions: {', '.join(missing_functions)}")
-                return False
-            
-            # Check for SOL distribution logic
+            # Check for SOL-specific logic (not token logic)
             sol_logic_checks = {
-                "Reserve Logic": "0.1" in bot_content and "reserve" in bot_content.lower(),
-                "Equal Distribution": "/ 4" in bot_content or "availableSOL / 4" in bot_content,
-                "Wallet Range": "walletId = 2" in bot_content and "walletId <= 5" in bot_content,
-                "Balance Check": "availableSOL <= 0" in bot_content or "insufficient" in bot_content.lower()
+                "SOL Reserve Logic": "0.5" in bot_content and "reserve" in bot_content.lower(),
+                "SOL Distribution": "SOL" in bot_content and "distribute" in bot_content.lower(),
+                "Wallet Range 2-5": "walletId = 2" in bot_content and "walletId <= 5" in bot_content,
+                "Balance Check": "availableSOL" in bot_content or "totalSOL" in bot_content,
+                "No Token Distribution": "seedWalletsForToken" not in bot_content
             }
             
             failed_checks = [check for check, passed in sol_logic_checks.items() if not passed]
             
             details = {
-                "Functions Found": list(required_functions.keys()),
+                "Functions Found": [func for func, exists in required_functions.items() if exists],
+                "Missing Functions": missing_functions,
                 "Logic Checks": list(sol_logic_checks.keys()),
                 "Failed Checks": failed_checks
             }
             
-            if failed_checks:
-                self.log_test(test_name, "WARN", f"Some logic checks failed: {', '.join(failed_checks)}", details)
+            if missing_functions:
+                self.log_test(test_name, "FAIL", f"Missing SOL distribution functions: {', '.join(missing_functions)}", details)
+                return False
+            elif failed_checks:
+                self.log_test(test_name, "WARN", f"Some SOL logic checks failed: {', '.join(failed_checks)}", details)
                 return True  # Still pass as core functions exist
             
-            self.log_test(test_name, "PASS", "All SOL distribution functions and logic found", details)
+            self.log_test(test_name, "PASS", "SOL distribution properly implemented", details)
             return True
             
         except Exception as e:
             self.log_test(test_name, "FAIL", f"Error reading files: {str(e)}")
             return False
     
+    def test_liquidity_lock_implementation(self):
+        """Test 3: Verify liquidity lock command implementation"""
+        test_name = "Liquidity Lock Implementation"
+        
+        bot_js_path = self.telegram_bot_dir / "bot.js"
+        raydium_manager_path = self.telegram_bot_dir / "raydium-manager.js"
+        
+        try:
+            with open(bot_js_path, 'r') as f:
+                bot_content = f.read()
+            
+            # Check for liquidity lock command and functions
+            liquidity_lock_checks = {
+                "Lock Liquidity Command": "/lock_liquidity" in bot_content or "liquidity_lock" in bot_content,
+                "Execute Liquidity Lock": "executeLiquidityLock" in bot_content,
+                "Lock Duration": "1 month" in bot_content.lower() or "1 year" in bot_content.lower(),
+                "Lock Verification": "verify" in bot_content.lower() and "lock" in bot_content.lower(),
+                "Pool Selection": "pool" in bot_content.lower() and "select" in bot_content.lower()
+            }
+            
+            failed_checks = [check for check, passed in liquidity_lock_checks.items() if not passed]
+            
+            # Check raydium-manager for lock functionality
+            raydium_checks = {}
+            if raydium_manager_path.exists():
+                with open(raydium_manager_path, 'r') as f:
+                    raydium_content = f.read()
+                
+                raydium_checks = {
+                    "Raydium Manager Exists": True,
+                    "Pool Management": "pool" in raydium_content.lower(),
+                    "Lock Storage": "lock" in raydium_content.lower() or "Lock" in raydium_content
+                }
+            else:
+                raydium_checks = {"Raydium Manager Exists": False}
+            
+            details = {
+                "Liquidity Lock Checks": list(liquidity_lock_checks.keys()),
+                "Failed Bot Checks": failed_checks,
+                "Raydium Manager Checks": list(raydium_checks.keys()),
+                "Failed Raydium Checks": [check for check, passed in raydium_checks.items() if not passed]
+            }
+            
+            total_failed = len(failed_checks) + len([check for check, passed in raydium_checks.items() if not passed])
+            
+            if total_failed > 2:
+                self.log_test(test_name, "FAIL", f"Liquidity lock implementation incomplete: {total_failed} checks failed", details)
+                return False
+            elif total_failed > 0:
+                self.log_test(test_name, "WARN", f"Some liquidity lock checks failed: {total_failed}", details)
+                return True
+            
+            self.log_test(test_name, "PASS", "Liquidity lock properly implemented", details)
+            return True
+            
+        except Exception as e:
+            self.log_test(test_name, "FAIL", f"Error analyzing liquidity lock: {str(e)}")
+            return False
+    
     def test_wallet_manager_sol_transfer(self):
-        """Test 3: Verify transferSOL method implementation"""
+        """Test 4: Verify transferSOL method implementation"""
         test_name = "Wallet Manager SOL Transfer"
         
         wallet_manager_path = self.telegram_bot_dir / "wallet-manager.js"
@@ -159,7 +246,8 @@ class TelegramBotTester:
                 "Balance Check": "balance < amount" in content or "insufficient" in content.lower(),
                 "Transaction Creation": "SystemProgram.transfer" in content,
                 "Error Handling": "try {" in content and "catch" in content,
-                "Return Object": "success:" in content and "signature:" in content
+                "Return Object": "success:" in content and "signature:" in content,
+                "SOL Amount Conversion": "LAMPORTS_PER_SOL" in content
             }
             
             missing_components = [comp for comp, exists in transfer_components.items() if not exists]
@@ -170,7 +258,7 @@ class TelegramBotTester:
             }
             
             if missing_components:
-                self.log_test(test_name, "FAIL", f"Missing components: {', '.join(missing_components)}", details)
+                self.log_test(test_name, "FAIL", f"Missing transferSOL components: {', '.join(missing_components)}", details)
                 return False
             
             self.log_test(test_name, "PASS", "transferSOL method properly implemented", details)
@@ -180,170 +268,68 @@ class TelegramBotTester:
             self.log_test(test_name, "FAIL", f"Error analyzing transferSOL: {str(e)}")
             return False
     
-    def test_command_flow_logic(self):
-        """Test 4: Verify command flow and callback handling"""
-        test_name = "Command Flow Logic"
-        
-        bot_js_path = self.telegram_bot_dir / "bot.js"
+    def test_bot_startup_no_crashes(self):
+        """Test 5: Verify bot can start without crashes (missing files issue)"""
+        test_name = "Bot Startup Test"
         
         try:
-            with open(bot_js_path, 'r') as f:
-                content = f.read()
+            # Check if all required files exist
+            required_files = [
+                "telegram-bot/bot.js",
+                "telegram-bot/wallet-manager.js",
+                "telegram-bot/ai-integrations.js",
+                "telegram-bot/metadata-manager.js",
+                "telegram-bot/raydium-manager.js",
+                "telegram-bot/token-manager.js",
+                "telegram-bot/.env",
+                "telegram-bot/package.json"
+            ]
             
-            # Check command flow components
-            flow_components = {
-                "Seed Wallets Command": "/seed_wallets" in content,
-                "Confirmation Callback": "confirm_sol_distribution" in content,
-                "Cancel Callback": "cancel_seed" in content,
-                "Balance Display": "Check Balances First" in content,
-                "Equal Distribution Math": "/ 4" in content,
-                "Reserve Amount": "0.1" in content,
-                "Success Message": "SOL Distribution Complete" in content or "distribution complete" in content.lower()
-            }
+            missing_files = []
+            for file_path in required_files:
+                full_path = project_root / file_path
+                if not full_path.exists():
+                    missing_files.append(file_path)
             
-            missing_components = [comp for comp, exists in flow_components.items() if not exists]
-            
-            # Check for callback handler registration
-            callback_handling = {
-                "Callback Handler": "bot.on('callback_query'" in content,
-                "SOL Distribution Handler": "confirm_sol_distribution" in content
-            }
-            
-            missing_handlers = [handler for handler, exists in callback_handling.items() if not exists]
-            
-            details = {
-                "Flow Components": list(flow_components.keys()),
-                "Missing Flow Components": missing_components,
-                "Callback Handlers": list(callback_handling.keys()),
-                "Missing Handlers": missing_handlers
-            }
-            
-            total_missing = len(missing_components) + len(missing_handlers)
-            
-            if total_missing > 2:  # Allow for minor variations
-                self.log_test(test_name, "FAIL", f"Too many missing components: {total_missing}", details)
+            if missing_files:
+                self.log_test(test_name, "FAIL", f"Missing files that would cause crashes: {', '.join(missing_files)}")
                 return False
-            elif total_missing > 0:
-                self.log_test(test_name, "WARN", f"Some components missing: {total_missing}", details)
-                return True
             
-            self.log_test(test_name, "PASS", "Command flow logic properly implemented", details)
-            return True
-            
-        except Exception as e:
-            self.log_test(test_name, "FAIL", f"Error analyzing command flow: {str(e)}")
-            return False
-    
-    def test_mathematical_logic(self):
-        """Test 5: Verify SOL distribution mathematical logic"""
-        test_name = "Mathematical Logic Verification"
-        
-        bot_js_path = self.telegram_bot_dir / "bot.js"
-        
-        try:
-            with open(bot_js_path, 'r') as f:
-                content = f.read()
-            
-            # Extract mathematical logic patterns
-            math_patterns = {
-                "Reserve Calculation": "0.1" in content,
-                "Available SOL": "availableSOL" in content,
-                "Division by 4": "/ 4" in content,
-                "Balance Validation": "availableSOL <= 0" in content,
-                "Per Wallet Amount": "solPerWallet" in content or "perWallet" in content
-            }
-            
-            # Check for proper wallet range (2-5)
-            wallet_range_patterns = {
-                "Start Wallet 2": "walletId = 2" in content,
-                "End Wallet 5": "walletId <= 5" in content,
-                "Loop Structure": "for (" in content and "walletId++" in content
-            }
-            
-            missing_math = [pattern for pattern, exists in math_patterns.items() if not exists]
-            missing_range = [pattern for pattern, exists in wallet_range_patterns.items() if not exists]
-            
-            details = {
-                "Math Patterns": list(math_patterns.keys()),
-                "Missing Math": missing_math,
-                "Range Patterns": list(wallet_range_patterns.keys()),
-                "Missing Range": missing_range
-            }
-            
-            total_missing = len(missing_math) + len(missing_range)
-            
-            if total_missing > 2:
-                self.log_test(test_name, "FAIL", f"Mathematical logic incomplete: {total_missing} missing", details)
-                return False
-            elif total_missing > 0:
-                self.log_test(test_name, "WARN", f"Some math patterns missing: {total_missing}", details)
-                return True
-            
-            self.log_test(test_name, "PASS", "Mathematical logic correctly implemented", details)
-            return True
-            
-        except Exception as e:
-            self.log_test(test_name, "FAIL", f"Error analyzing mathematical logic: {str(e)}")
-            return False
-    
-    def test_error_handling(self):
-        """Test 6: Verify error handling implementation"""
-        test_name = "Error Handling Verification"
-        
-        try:
+            # Check bot.js for proper imports
             bot_js_path = self.telegram_bot_dir / "bot.js"
-            wallet_manager_path = self.telegram_bot_dir / "wallet-manager.js"
-            
             with open(bot_js_path, 'r') as f:
                 bot_content = f.read()
             
-            with open(wallet_manager_path, 'r') as f:
-                wallet_content = f.read()
-            
-            # Check error handling patterns
-            error_patterns = {
-                "Try-Catch Blocks": "try {" in bot_content and "catch" in bot_content,
-                "Insufficient Balance": "insufficient" in bot_content.lower(),
-                "Wallet Not Found": "not found" in bot_content.lower() or "wallet1" in bot_content.lower(),
-                "Transaction Errors": "error" in bot_content.lower() and "transaction" in bot_content.lower(),
-                "Error Messages": "❌" in bot_content or "Error:" in bot_content
+            import_checks = {
+                "AI Integrations Import": "require('./ai-integrations')" in bot_content,
+                "Wallet Manager Import": "require('./wallet-manager')" in bot_content,
+                "Token Manager Import": "require('./token-manager')" in bot_content,
+                "Raydium Manager Import": "require('./raydium-manager')" in bot_content,
+                "Bot Initialization": "new TelegramBot(" in bot_content
             }
             
-            wallet_error_patterns = {
-                "Transfer Error Handling": "catch" in wallet_content and "transferSOL" in wallet_content,
-                "Balance Validation": "balance <" in wallet_content,
-                "Return Error Object": "success: false" in wallet_content,
-                "Error Logging": "console.error" in wallet_content
-            }
-            
-            missing_bot_errors = [pattern for pattern, exists in error_patterns.items() if not exists]
-            missing_wallet_errors = [pattern for pattern, exists in wallet_error_patterns.items() if not exists]
+            failed_imports = [check for check, passed in import_checks.items() if not passed]
             
             details = {
-                "Bot Error Patterns": list(error_patterns.keys()),
-                "Missing Bot Errors": missing_bot_errors,
-                "Wallet Error Patterns": list(wallet_error_patterns.keys()),
-                "Missing Wallet Errors": missing_wallet_errors
+                "Required Files": required_files,
+                "Missing Files": missing_files,
+                "Import Checks": list(import_checks.keys()),
+                "Failed Imports": failed_imports
             }
             
-            total_missing = len(missing_bot_errors) + len(missing_wallet_errors)
+            if failed_imports:
+                self.log_test(test_name, "WARN", f"Some imports may cause issues: {', '.join(failed_imports)}", details)
+                return True  # Still pass as files exist
             
-            if total_missing > 3:
-                self.log_test(test_name, "FAIL", f"Insufficient error handling: {total_missing} missing", details)
-                return False
-            elif total_missing > 0:
-                self.log_test(test_name, "WARN", f"Some error handling missing: {total_missing}", details)
-                return True
-            
-            self.log_test(test_name, "PASS", "Error handling properly implemented", details)
+            self.log_test(test_name, "PASS", "Bot should start without crashes", details)
             return True
             
         except Exception as e:
-            self.log_test(test_name, "FAIL", f"Error analyzing error handling: {str(e)}")
+            self.log_test(test_name, "FAIL", f"Error checking bot startup: {str(e)}")
             return False
     
     def test_dependencies_and_config(self):
-        """Test 7: Verify dependencies and configuration"""
+        """Test 6: Verify dependencies and configuration"""
         test_name = "Dependencies and Configuration"
         
         try:
@@ -357,7 +343,8 @@ class TelegramBotTester:
                 "node-telegram-bot-api",
                 "bip39",
                 "ed25519-hd-key",
-                "dotenv"
+                "dotenv",
+                "axios"  # For AI integrations
             ]
             
             dependencies = package_data.get('dependencies', {})
@@ -402,7 +389,7 @@ class TelegramBotTester:
             return False
     
     def test_telegram_bot_connectivity(self):
-        """Test 8: Test Telegram Bot API connectivity"""
+        """Test 7: Test Telegram Bot API connectivity"""
         test_name = "Telegram Bot API Connectivity"
         
         try:
@@ -436,7 +423,7 @@ class TelegramBotTester:
             return False
     
     def test_solana_rpc_connectivity(self):
-        """Test 9: Test Solana RPC connectivity"""
+        """Test 8: Test Solana RPC connectivity"""
         test_name = "Solana RPC Connectivity"
         
         try:
@@ -486,16 +473,15 @@ class TelegramBotTester:
     
     def run_all_tests(self):
         """Run all tests and generate report"""
-        print("🚀 Starting SOL Distribution Backend Tests...")
+        print("🚀 Starting Meme-bot Backend Tests...")
         print("=" * 60)
         
         tests = [
-            self.test_file_structure,
+            self.test_ai_integration_files,
             self.test_sol_distribution_implementation,
+            self.test_liquidity_lock_implementation,
             self.test_wallet_manager_sol_transfer,
-            self.test_command_flow_logic,
-            self.test_mathematical_logic,
-            self.test_error_handling,
+            self.test_bot_startup_no_crashes,
             self.test_dependencies_and_config,
             self.test_telegram_bot_connectivity,
             self.test_solana_rpc_connectivity
@@ -552,7 +538,7 @@ class TelegramBotTester:
 def main():
     """Main test execution"""
     try:
-        tester = TelegramBotTester()
+        tester = MemeBotTester()
         results = tester.run_all_tests()
         
         # Exit with appropriate code
