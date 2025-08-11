@@ -40,8 +40,8 @@ class TaxManager {
         return this.tokenTaxSettings.get(tokenMint);
     }
 
-    // Calculate tax amount in SOL for a transaction
-    calculateTaxAmount(tokenMint, transactionType, solAmount) {
+    // Calculate tax amount in SOL for a transaction - renamed method
+    calculateSOLTax(tokenMint, transactionType, solAmount) {
         const taxSettings = this.tokenTaxSettings.get(tokenMint);
         if (!taxSettings || !taxSettings.enabled) {
             return 0;
@@ -50,12 +50,12 @@ class TaxManager {
         const taxRate = transactionType === 'buy' ? taxSettings.buyTaxPercent : taxSettings.sellTaxPercent;
         const taxAmount = (solAmount * taxRate) / 100;
 
-        console.log(`💰 Tax calculated: ${taxAmount.toFixed(6)} SOL (${taxRate}% of ${solAmount} SOL)`);
+        console.log(`💰 SOL Tax calculated: ${taxAmount.toFixed(6)} SOL (${taxRate}% of ${solAmount} SOL)`);
         return taxAmount;
     }
 
-    // Record tax collection
-    recordTaxCollection(tokenMint, transactionType, taxAmountSOL) {
+    // Collect SOL tax - new method name
+    collectSOLTax(tokenMint, transactionType, taxAmountSOL) {
         const stats = this.taxCollectionStats.get(tokenMint);
         if (!stats) return;
 
@@ -70,7 +70,13 @@ class TaxManager {
         }
 
         this.taxCollectionStats.set(tokenMint, stats);
-        console.log(`💰 Tax recorded: ${taxAmountSOL.toFixed(6)} SOL collected (Total: ${stats.totalSOLCollected.toFixed(6)} SOL)`);
+        console.log(`💰 SOL Tax collected: ${taxAmountSOL.toFixed(6)} SOL (Total: ${stats.totalSOLCollected.toFixed(6)} SOL)`);
+        return stats.totalSOLCollected;
+    }
+
+    // Track tax collection - alias method
+    trackTaxCollection(tokenMint, transactionType, taxAmountSOL) {
+        return this.collectSOLTax(tokenMint, transactionType, taxAmountSOL);
     }
 
     // Get tax collection statistics
@@ -113,7 +119,16 @@ class TaxManager {
         return exemptSet ? Array.from(exemptSet) : [];
     }
 
-    // Format tax information for Telegram display
+    // Get all tokens with tax settings
+    getAllTokensWithTax() {
+        return Array.from(this.tokenTaxSettings.keys()).map(tokenMint => ({
+            tokenMint,
+            settings: this.tokenTaxSettings.get(tokenMint),
+            stats: this.taxCollectionStats.get(tokenMint)
+        }));
+    }
+
+    // Format tax information for display
     formatTaxInfoForTelegram(tokenMint, tokenInfo) {
         const taxData = this.getTaxStats(tokenMint);
         const exemptWallets = this.getTaxExemptWallets(tokenMint);
@@ -149,15 +164,6 @@ Use /set_fees to configure tax rates.
 🚫 **Tax Exempt Wallets:** ${exemptWallets.length}
 ${exemptWallets.length > 0 ? exemptWallets.map((wallet, i) => `${i + 1}. \`${wallet.substring(0, 8)}...${wallet.substring(-8)}\``).join('\n') : 'No exempt wallets'}
         `;
-    }
-
-    // Get all tokens with tax settings
-    getAllTokensWithTax() {
-        return Array.from(this.tokenTaxSettings.keys()).map(tokenMint => ({
-            tokenMint,
-            settings: this.tokenTaxSettings.get(tokenMint),
-            stats: this.taxCollectionStats.get(tokenMint)
-        }));
     }
 }
 
