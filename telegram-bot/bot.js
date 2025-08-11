@@ -1824,9 +1824,11 @@ Choose a wallet to request 1 SOL airdrop:
         await showStatus(chatId);
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'launch_token') {
+        console.log(`🚀 Launch token button pressed by user ${userId} in chat ${chatId}`);
         try {
-            console.log(`🚀 Launch token button pressed by user in chat ${chatId}`);
+            console.log(`📝 Starting token creation for user ${userId}`);
             startTokenCreation(chatId, userId);
+            console.log(`✅ startTokenCreation called successfully`);
         } catch (error) {
             console.error('❌ Launch token button error:', error);
             bot.sendMessage(chatId, '❌ Error starting token creation. Please try the /launch command.');
