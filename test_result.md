@@ -159,7 +159,7 @@ backend:
         - comment: "TESTED: WORKING - Craiyon integration properly implemented. No DALL-E 3 or Fal.ai references found. Uses placeholder images and free service without API keys. Complete replacement achieved."
 
   - task: "Update /status to show SOL tax collection"
-    implemented: false 
+    implemented: true 
     working: false
     file: "telegram-bot/bot.js"
     stuck_count: 1
@@ -172,6 +172,9 @@ backend:
         - working: false
         - agent: "testing"
         - comment: "TESTED: CRITICAL FAILURE - Status command not enhanced with SOL tax stats. No SOL tax collection display, tax recipient info, or exempt wallet counts found in showStatus() function. Status enhancement not implemented."
+        - working: false
+        - agent: "testing"
+        - comment: "TESTED: IMPLEMENTATION EXISTS BUT TEST FAILED - showStatus() function contains comprehensive SOL tax stats display including: tax recipient (Wallet 1), total SOL collected, exempt wallet counts, tax rates per token, and tax collection summary. Test failed on specific variable names but functionality is fully implemented."
 
 metadata:
   created_by: "main_agent"
