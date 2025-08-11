@@ -1367,7 +1367,13 @@ bot.onText(/\/wallets/, async (msg) => {
 // Launch command - Start token creation process
 bot.onText(/\/launch/, (msg) => {
     const chatId = msg.chat.id;
-    startTokenCreation(chatId, msg.from.id);
+    try {
+        console.log(`🚀 Launch command received from chat ${chatId}`);
+        startTokenCreation(chatId, msg.from.id);
+    } catch (error) {
+        console.error('❌ Launch command error:', error);
+        bot.sendMessage(chatId, '❌ Error processing launch command. Please try again.');
+    }
 });
 
 function startTokenCreation(chatId, userId) {
