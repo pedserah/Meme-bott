@@ -69,8 +69,8 @@ backend:
         - comment: "TESTED: PARTIAL IMPLEMENTATION - tax-manager.js exists with TaxManager class and most functionality. Missing specific methods: calculateSOLTax/collectSOLTax (has calculateTaxAmount instead), trackTaxCollection (has recordTaxCollection). Core SOL tax system is 90% implemented but test expects specific method names."
 
   - task: "Add /set_fees command"
-    implemented: false 
-    working: false
+    implemented: true 
+    working: true
     file: "telegram-bot/bot.js"
     stuck_count: 1
     priority: "critical"
@@ -82,6 +82,9 @@ backend:
         - working: false
         - agent: "testing"
         - comment: "TESTED: CRITICAL FAILURE - /set_fees command is not implemented. No command handler, no UI elements, no tax rate configuration found in bot.js. Command is completely missing."
+        - working: true
+        - agent: "testing"
+        - comment: "TESTED: WORKING - /set_fees command fully implemented with interactive UI, tax rate configuration (0-99%), callback handlers, and token selection. Only minor issue: missing token selection UI text but functionality works. Command properly integrated with tax manager."
 
   - task: "Add /mint_rugpull simulation command"
     implemented: false 
