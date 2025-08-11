@@ -2174,6 +2174,47 @@ Learn how supply increases affect token price and liquidity.
     } else if (data === 'cancel_fees' || data === 'cancel_exempt' || data === 'cancel_mint_rugpull') {
         bot.sendMessage(chatId, '❌ Operation cancelled.');
         bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'confirm_auto_brand') {
+        await executeAutoBrand(chatId);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_auto_brand') {
+        bot.sendMessage(chatId, '❌ AI branding cancelled.');
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('launch_branded_')) {
+        const parts = data.replace('launch_branded_', '').split('_');
+        const tokenName = parts[0];
+        const tokenSymbol = parts[1];
+        
+        bot.sendMessage(chatId, `🚀 Launching ${tokenName} (${tokenSymbol}) with AI branding...`);
+        // Add launch logic here
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('chart_activity_')) {
+        const tokenMint = data.replace('chart_activity_', '');
+        showChartActivityOptions(chatId, tokenMint);
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('start_chart_')) {
+        const tokenMint = data.replace('start_chart_', '');
+        const result = realTradingManager.startChartActivity(tokenMint, 10); // 10 minute intervals
+        
+        if (result.success) {
+            bot.sendMessage(chatId, `✅ Chart activity started! Small trades every 10 minutes.`);
+        } else {
+            bot.sendMessage(chatId, `❌ Failed to start chart activity: ${result.error}`);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data.startsWith('stop_chart_')) {
+        const tokenMint = data.replace('stop_chart_', '');
+        const result = realTradingManager.stopChartActivity();
+        
+        if (result.success) {
+            bot.sendMessage(chatId, `✅ Chart activity stopped.`);
+        } else {
+            bot.sendMessage(chatId, `❌ Failed to stop chart activity: ${result.error}`);
+        }
+        bot.answerCallbackQuery(callbackQuery.id);
+    } else if (data === 'cancel_chart') {
+        bot.sendMessage(chatId, '❌ Chart activity cancelled.');
+        bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'confirm_create_token') {
         const session = botState.userSessions.get(userId);
         if (!session || !session.tokenData) {
