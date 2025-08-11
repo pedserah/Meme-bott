@@ -183,8 +183,8 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
-  stuck_tasks: ["Implement SOL-based tax system", "Add /set_fees command", "Add /mint_rugpull simulation command", "Update token creation for Wallet 1 allocation", "Add chart activity simulation", "Replace DALL-E 3/Fal.ai with Craiyon completely", "Update /status to show SOL tax collection"]
+  current_focus: ["Implement SOL-based tax system", "Update /status to show SOL tax collection"]
+  stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
