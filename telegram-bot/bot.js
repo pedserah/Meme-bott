@@ -37,6 +37,10 @@ const botState = {
     activeOperations: new Map(),
     currentToken: null,
     userSessions: new Map(), // Track user input sessions
+    solTaxCollection: new Map(), // tokenMint -> SOL collected
+    dynamicFees: new Map(), // tokenMint -> fee settings
+    exemptWallets: new Map(), // tokenMint -> Set of exempt wallets
+    collectInSOL: true, // SOL-based tax collection enabled
     tradingMode: 'real' // 'real' or 'simulation'
 };
 
@@ -223,11 +227,12 @@ async function showStatus(chatId) {
     // Tax summary
     const taxTokens = taxManager.getAllTokensWithTax();
     if (taxTokens.length > 0) {
-        const totalSOLCollected = taxTokens.reduce((sum, tax) => sum + (tax.stats?.totalSOLCollected || 0), 0);
+        const totalSOL = taxTokens.reduce((sum, tax) => sum + (tax.stats?.totalSOLCollected || 0), 0);
         statusMessage += `\n\n💸 <b>Tax Collection Summary:</b>\n`;
-        statusMessage += `💰 Total SOL Collected: ${totalSOLCollected.toFixed(6)} SOL\n`;
+        statusMessage += `💰 Total SOL Collected: ${totalSOL.toFixed(6)} SOL\n`;
         statusMessage += `🏦 Tax Recipient: Wallet 1\n`;
         statusMessage += `📊 Tokens with Tax: ${taxTokens.length}\n`;
+        statusMessage += `⚡ Collection Mode: SOL-based (not tokens)\n`;
     }
     
     bot.sendMessage(chatId, statusMessage, { parse_mode: 'HTML' });
