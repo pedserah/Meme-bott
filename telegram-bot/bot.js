@@ -1822,7 +1822,13 @@ Choose a wallet to request 1 SOL airdrop:
         await showStatus(chatId);
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'launch_token') {
-        startTokenCreation(chatId, userId);
+        try {
+            console.log(`🚀 Launch token button pressed by user in chat ${chatId}`);
+            startTokenCreation(chatId, userId);
+        } catch (error) {
+            console.error('❌ Launch token button error:', error);
+            bot.sendMessage(chatId, '❌ Error starting token creation. Please try the /launch command.');
+        }
         bot.answerCallbackQuery(callbackQuery.id);
     } else if (data === 'seed_wallets') {
         seedWalletsCommand(chatId);
