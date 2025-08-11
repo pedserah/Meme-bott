@@ -123,8 +123,8 @@ backend:
         - comment: "Minor: WORKING - Token creation updated to avoid 100% allocation to Wallet 1. Missing explicit 'remainingSupply' handling but core allocation logic is implemented. No longer mints entire supply to single wallet."
 
   - task: "Add chart activity simulation"
-    implemented: false 
-    working: false
+    implemented: true 
+    working: true
     file: "telegram-bot/real-trading-manager.js"
     stuck_count: 1
     priority: "high"
@@ -136,6 +136,9 @@ backend:
         - working: false
         - agent: "testing"
         - comment: "TESTED: CRITICAL FAILURE - Chart activity simulation methods are missing. No startChartActivity(), stopChartActivity(), or generateChartActivityTrade() methods found in real-trading-manager.js. Small trade logic (0.005-0.02 SOL) not implemented."
+        - working: true
+        - agent: "testing"
+        - comment: "TESTED: WORKING - Chart activity simulation fully implemented. All required methods present: startChartActivity(), stopChartActivity(), generateChartActivityTrade(). Small trade logic (0.005-0.02 SOL) implemented with periodic trading intervals."
 
   - task: "Replace DALL-E 3/Fal.ai with Craiyon completely"
     implemented: false 
