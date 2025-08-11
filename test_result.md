@@ -51,7 +51,7 @@ user_problem_statement: "Complete Meme-bot devnet configuration: 1) Fix tax syst
 
 backend:
   - task: "Implement SOL-based tax system"
-    implemented: false 
+    implemented: true 
     working: false
     file: "telegram-bot/tax-manager.js, telegram-bot/bot.js"
     stuck_count: 1
@@ -64,6 +64,9 @@ backend:
         - working: false
         - agent: "testing"
         - comment: "TESTED: CRITICAL FAILURE - tax-manager.js file is completely missing. The SOL-based tax system is not implemented at all. Bot state shows some tax-related variables but no actual tax manager class or SOL tax collection logic exists."
+        - working: false
+        - agent: "testing"
+        - comment: "TESTED: PARTIAL IMPLEMENTATION - tax-manager.js exists with TaxManager class and most functionality. Missing specific methods: calculateSOLTax/collectSOLTax (has calculateTaxAmount instead), trackTaxCollection (has recordTaxCollection). Core SOL tax system is 90% implemented but test expects specific method names."
 
   - task: "Add /set_fees command"
     implemented: false 
