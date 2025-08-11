@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 """
-Backend Test Suite for SOL Distribution Telegram Bot
-Tests the modified /seed_wallets command that distributes SOL instead of tokens
+Backend Test Suite for Meme-bot Telegram Bot
+Tests the fixed Meme-bot backend functionality including:
+1. Core Bot Functionality (AI integration files)
+2. SOL Distribution (/seed_wallets) 
+3. Liquidity Lock (/liquidity_lock)
+4. AI Integration (Craiyon)
+5. Wallet Manager SOL transfers
 """
 
 import os
