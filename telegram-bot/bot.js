@@ -1702,6 +1702,8 @@ bot.on('callback_query', async (callbackQuery) => {
     const chatId = message.chat.id;
     const userId = callbackQuery.from.id;
     
+    console.log(`🔔 Callback query received: ${data} from user ${userId} in chat ${chatId}`);
+    
     if (data === 'refresh_wallets') {
         try {
             const walletMessage = await walletManager.formatAllWalletsForTelegram();
