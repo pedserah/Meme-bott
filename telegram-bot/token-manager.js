@@ -65,10 +65,10 @@ class TokenManager {
 
             console.log(`✅ Token account created: ${tokenAccount.address.toString()}`);
 
-            // Step 3: Mint tokens - 20% to Wallet 1, rest for trading/pool
-            console.log(`🪙 Minting tokens - 20% to Wallet 1 for pool operations...`);
+            // Step 3: Mint tokens - 20% to Wallet 1, rest for pool/trading
+            console.log(`🪙 Minting tokens - 20% to Wallet 1 for operations...`);
             const wallet1Share = totalSupply * 0.2; // 20% to Wallet 1
-            const mintAmount = wallet1Share * Math.pow(10, 9); // Convert to smallest unit (9 decimals)
+            const mintAmount = wallet1Share * Math.pow(10, 9); // Convert to smallest unit with 9 decimals
             
             const mintSignature = await mintTo(
                 this.connection,
