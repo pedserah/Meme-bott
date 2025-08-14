@@ -51,20 +51,147 @@ class WalletManager {
     }
 
     async updateBalances() {
-        const balancePromises = this.wallets.map(async (wallet) => {
-            try {
-                const balance = await this.connection.getBalance(wallet.keypair.publicKey);
-                wallet.balance = balance / LAMPORTS_PER_SOL;
-                return wallet;
-            } catch (error) {
-                console.error(`❌ Error fetching balance for wallet ${wallet.id}:`, error.message);
-                wallet.balance = 0;
-                return wallet;
-            }
-        });
+        try {
+            console.log('Starting balance update for all wallets...');
+            const balancePromises = this.wallets.map(async (wallet) => {
+                if (!wallet || !wallet.keypair) {
+                    console.error(`❌ Invalid wallet configuration for wallet ${wallet?.id}`);
+                    return null;
+                }
+                try {
+                    console.log(`Checking balance for wallet ${wallet.id}...`);
+                    const balance = await this.connection.getBalance(wallet.keypair.publicKey);
+                    wallet.balance = balance / LAMPORTS_PER_SOL;
+                    console.log(`✅ Wallet ${wallet.id} balance: ${wallet.balance} SOL`);
+                    return wallet;
+                } catch (error) {
+                    console.error(`❌ Error fetching balance for wallet ${wallet.id}:`, error.message);
+                    wallet.balance = 0;
+                    return wallet;
+                }
+            });
 
-        await Promise.all(balancePromises);
-        return this.wallets;
+            const results = await Promise.all(balancePromises);
+            this.wallets = results.filter(wallet => wallet !== null);
+            return this.wallets;
+            console.log('Final wallet states:', this.wallets.map(w => ({
+                id: w.id,
+                balance: w.balance,
+                hasKeypair: !!w.keypair,
+                publicKey: w.publicKey
+            })));
+            return this.wallets;
+        } catch (error) {
+            console.error('Error updating balances:', error);
+            return this.wallets;
+        }
+    }
+
+    async distributeSOL() {
+        try {
+            await this.updateBalances();
+            const sourceWallet = this.wallets[0]; // Wallet 1
+            const targetWallets = this.wallets.slice(1); // Wallets 2-5
+
+            // Validate source wallet
+            if (!sourceWallet?.keypair) {
+                throw new Error('Source wallet (Wallet 1) not properly initialized');
+            }
+
+            // Calculate available SOL
+            const reserveAmount = 0.05; // SOL to reserve for fees
+            const currentBalance = sourceWallet.balance || 0;
+            
+            console.log(`Source wallet balance: ${currentBalance} SOL`);
+            
+            if (currentBalance <= reserveAmount) {
+                throw new Error(`Insufficient SOL in wallet 1. Current: ${currentBalance} SOL, Need more than ${reserveAmount} SOL`);
+            }
+
+            const availableSOL = currentBalance - reserveAmount;
+            console.log(`Available SOL for distribution: ${availableSOL} SOL`);
+
+            // Validate target wallets
+            const validTargetWallets = targetWallets.filter(w => w?.keypair);
+            if (validTargetWallets.length === 0) {
+                throw new Error('No valid target wallets found');
+            }
+
+            // Calculate distribution
+            const solPerWallet = availableSOL / validTargetWallets.length;
+            console.log(`SOL per wallet: ${solPerWallet} SOL`);
+            const results = [];
+
+            // Distribute SOL
+            for (const targetWallet of validTargetWallets) {
+                try {
+                    const lamports = Math.floor(solPerWallet * LAMPORTS_PER_SOL);
+                    console.log(`Sending ${lamports / LAMPORTS_PER_SOL} SOL to wallet ${targetWallet.id}`);
+                    
+                    const tx = new Transaction().add(
+                        SystemProgram.transfer({
+                            fromPubkey: sourceWallet.keypair.publicKey,
+                            toPubkey: targetWallet.keypair.publicKey,
+                            lamports,
+                        })
+                    );
+
+                    // Set recent blockhash
+                    tx.recentBlockhash = (await this.connection.getLatestBlockhash('confirmed')).blockhash;
+                    tx.feePayer = sourceWallet.keypair.publicKey;
+
+                    const signature = await sendAndConfirmTransaction(
+                        this.connection,
+                        tx,
+                        [sourceWallet.keypair],
+                        { commitment: 'confirmed' }
+                    );
+
+                results.push({
+                    targetWallet: targetWallet.id,
+                    amount: solPerWallet,
+                    signature
+                });
+            }
+
+            await this.updateBalances();
+            return {
+                success: true,
+                distributedAmount: solPerWallet,
+                totalWallets: targetWallets.length,
+                reservedAmount: reserveAmount,
+                transactions: results
+            };
+        } catch (error) {
+            console.error('Error distributing SOL:', error);
+            throw error;
+        }
+    }
+
+    async updateBalances() {
+        try {
+            const balancePromises = this.wallets.map(async (wallet) => {
+                if (!wallet || !wallet.keypair) {
+                    console.error(`❌ Invalid wallet configuration for wallet ${wallet?.id}`);
+                    return null;
+                }
+                try {
+                    const balance = await this.connection.getBalance(wallet.keypair.publicKey);
+                    wallet.balance = balance / LAMPORTS_PER_SOL;
+                    return wallet;
+                } catch (error) {
+                    console.error(`❌ Error fetching balance for wallet ${wallet.id}:`, error.message);
+                    wallet.balance = 0;
+                    return wallet;
+                }
+            });
+
+            const results = await Promise.all(balancePromises);
+            return results.filter(wallet => wallet !== null);
+        } catch (error) {
+            console.error('Error updating balances:', error);
+            return this.wallets;
+        }
     }
 
     getWallet(id) {

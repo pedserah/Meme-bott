@@ -1,169 +1,175 @@
-const { LAMPORTS_PER_SOL } = require('@solana/web3.js');
+const { Connection, PublicKey, LAMPORTS_PER_SOL, Transaction, SystemProgram } = require('@solana/web3.js');
 
 class TaxManager {
-    constructor() {
-        this.tokenTaxSettings = new Map(); // tokenMint -> tax settings
-        this.taxCollectionStats = new Map(); // tokenMint -> collection stats
-        this.exemptWallets = new Map(); // tokenMint -> Set of exempt wallet addresses
-        console.log('💰 Tax Manager initialized - SOL-based tax system');
-    }
-
-    // Set tax rates for a token (in SOL)
-    setTokenTaxRates(tokenMint, buyTaxPercent, sellTaxPercent, taxRecipientWallet) {
-        const taxSettings = {
-            buyTaxPercent: Math.min(Math.max(buyTaxPercent, 0), 99), // 0-99%
-            sellTaxPercent: Math.min(Math.max(sellTaxPercent, 0), 99), // 0-99%
-            taxRecipientWallet: taxRecipientWallet, // Wallet address to receive tax
-            enabled: true,
-            createdAt: new Date().toISOString()
+    constructor(connection, walletManager) {
+        this.connection = connection;
+        this.walletManager = walletManager;
+        this.taxCollectorWallet = 1; // Wallet 1 collects taxes
+        this.stats = {
+            totalSOLCollected: 0,
+            totalBuyTaxes: 0,
+            totalSellTaxes: 0,
+            totalTransactions: 0,
+            lastCollectionDate: null
         };
+        this.taxRates = {
+            buy: 0.03,  // 3% buy tax
+            sell: 0.05, // 5% sell tax
+            transfer: 0.02 // 2% transfer tax
+        };
+        this.exemptWallets = new Set();
+        this.tokensWithTax = new Map();
+    }
 
-        this.tokenTaxSettings.set(tokenMint, taxSettings);
-
-        // Initialize collection stats
-        if (!this.taxCollectionStats.has(tokenMint)) {
-            this.taxCollectionStats.set(tokenMint, {
-                totalSOLCollected: 0,
-                totalBuyTaxes: 0,
-                totalSellTaxes: 0,
-                totalTransactions: 0,
-                lastCollectionDate: null
-            });
+    // Calculate SOL tax amount based on operation type and amount
+    calculateSOLTax(operationType, solAmount) {
+        if (operationType !== 'buy' && operationType !== 'sell' && operationType !== 'transfer') {
+            throw new Error('Invalid operation type');
         }
 
-        console.log(`💰 Tax rates set for token ${tokenMint}: Buy ${buyTaxPercent}%, Sell ${sellTaxPercent}%`);
-        return taxSettings;
+        const taxRate = this.taxRates[operationType];
+        return solAmount * taxRate;
     }
 
-    // Get tax settings for a token
-    getTokenTaxSettings(tokenMint) {
-        return this.tokenTaxSettings.get(tokenMint);
-    }
+    // Collect SOL tax for a transaction
+    async collectSOLTax(fromWallet, operationType, solAmount) {
+        try {
+            if (this.exemptWallets.has(fromWallet.publicKey.toString())) {
+                console.log('Wallet is tax exempt');
+                return { success: true, taxAmount: 0 };
+            }
 
-    // Calculate tax amount in SOL for a transaction - renamed method
-    calculateSOLTax(tokenMint, transactionType, solAmount) {
-        const taxSettings = this.tokenTaxSettings.get(tokenMint);
-        if (!taxSettings || !taxSettings.enabled) {
-            return 0;
+            const taxAmount = this.calculateSOLTax(operationType, solAmount);
+            if (taxAmount <= 0) {
+                return { success: true, taxAmount: 0 };
+            }
+
+            // Get collector wallet
+            const collectorWallet = this.walletManager.getWallet(this.taxCollectorWallet);
+            if (!collectorWallet) {
+                throw new Error('Tax collector wallet not found');
+            }
+
+            // Create and send tax collection transaction
+            const transaction = new Transaction().add(
+                SystemProgram.transfer({
+                    fromPubkey: fromWallet.publicKey,
+                    toPubkey: collectorWallet.publicKey,
+                    lamports: taxAmount * LAMPORTS_PER_SOL
+                })
+            );
+
+            const signature = await this.connection.sendTransaction(
+                transaction,
+                [fromWallet]
+            );
+
+            await this.connection.confirmTransaction(signature);
+            
+            // Record successful tax collection
+            this.trackTaxCollection(operationType, taxAmount);
+
+            return {
+                success: true,
+                taxAmount,
+                signature
+            };
+
+        } catch (error) {
+            console.error('Tax collection failed:', error);
+            return {
+                success: false,
+                error: error.message
+            };
         }
-
-        const taxRate = transactionType === 'buy' ? taxSettings.buyTaxPercent : taxSettings.sellTaxPercent;
-        const taxAmount = (solAmount * taxRate) / 100;
-
-        console.log(`💰 SOL Tax calculated: ${taxAmount.toFixed(6)} SOL (${taxRate}% of ${solAmount} SOL)`);
-        return taxAmount;
     }
 
-    // Collect SOL tax - new method name
-    collectSOLTax(tokenMint, transactionType, taxAmountSOL) {
-        const stats = this.taxCollectionStats.get(tokenMint);
-        if (!stats) return;
+    // Track tax collection statistics
+    trackTaxCollection(operationType, taxAmount) {
+        this.stats.totalSOLCollected += taxAmount;
+        this.stats.totalTransactions++;
+        this.stats.lastCollectionDate = new Date();
 
-        stats.totalSOLCollected += taxAmountSOL;
-        stats.totalTransactions += 1;
-        stats.lastCollectionDate = new Date().toISOString();
-
-        if (transactionType === 'buy') {
-            stats.totalBuyTaxes += taxAmountSOL;
-        } else {
-            stats.totalSellTaxes += taxAmountSOL;
+        if (operationType === 'buy') {
+            this.stats.totalBuyTaxes += taxAmount;
+        } else if (operationType === 'sell') {
+            this.stats.totalSellTaxes += taxAmount;
         }
-
-        this.taxCollectionStats.set(tokenMint, stats);
-        console.log(`💰 SOL Tax collected: ${taxAmountSOL.toFixed(6)} SOL (Total: ${stats.totalSOLCollected.toFixed(6)} SOL)`);
-        return stats.totalSOLCollected;
     }
 
-    // Track tax collection - alias method
-    trackTaxCollection(tokenMint, transactionType, taxAmountSOL) {
-        return this.collectSOLTax(tokenMint, transactionType, taxAmountSOL);
-    }
-
-    // Get tax collection statistics
-    getTaxStats(tokenMint) {
-        const settings = this.tokenTaxSettings.get(tokenMint);
-        const stats = this.taxCollectionStats.get(tokenMint);
-        
+    // Get current tax statistics
+    getTaxStats() {
         return {
-            settings: settings || null,
-            stats: stats || {
-                totalSOLCollected: 0,
-                totalBuyTaxes: 0,
-                totalSellTaxes: 0,
-                totalTransactions: 0,
-                lastCollectionDate: null
+            settings: {
+                buyTax: this.taxRates.buy * 100 + '%',
+                sellTax: this.taxRates.sell * 100 + '%',
+                transferTax: this.taxRates.transfer * 100 + '%',
+                collectorWallet: this.taxCollectorWallet
+            },
+            stats: {
+                ...this.stats,
+                totalSOLCollected: this.stats.totalSOLCollected.toFixed(4),
+                totalBuyTaxes: this.stats.totalBuyTaxes.toFixed(4),
+                totalSellTaxes: this.stats.totalSellTaxes.toFixed(4)
             }
         };
     }
 
-    // Add wallet to tax exemption list
-    addTaxExemptWallet(tokenMint, walletAddress) {
-        if (!this.exemptWallets.has(tokenMint)) {
-            this.exemptWallets.set(tokenMint, new Set());
-        }
-        
-        this.exemptWallets.get(tokenMint).add(walletAddress);
-        console.log(`💰 Wallet ${walletAddress} exempted from taxes for token ${tokenMint}`);
-        return true;
-    }
-
-    // Check if wallet is tax exempt
-    isWalletTaxExempt(tokenMint, walletAddress) {
-        const exemptSet = this.exemptWallets.get(tokenMint);
-        return exemptSet ? exemptSet.has(walletAddress) : false;
-    }
-
-    // Get all exempt wallets for a token
-    getTaxExemptWallets(tokenMint) {
-        const exemptSet = this.exemptWallets.get(tokenMint);
-        return exemptSet ? Array.from(exemptSet) : [];
-    }
-
-    // Get all tokens with tax settings
+    // Get list of tokens with tax enabled
     getAllTokensWithTax() {
-        return Array.from(this.tokenTaxSettings.keys()).map(tokenMint => ({
-            tokenMint,
-            settings: this.tokenTaxSettings.get(tokenMint),
-            stats: this.taxCollectionStats.get(tokenMint)
+        return Array.from(this.tokensWithTax.entries()).map(([address, settings]) => ({
+            address,
+            ...settings
         }));
     }
 
-    // Format tax information for display
-    formatTaxInfoForTelegram(tokenMint, tokenInfo) {
-        const taxData = this.getTaxStats(tokenMint);
-        const exemptWallets = this.getTaxExemptWallets(tokenMint);
+    // Get list of tax exempt wallets
+    getTaxExemptWallets() {
+        return Array.from(this.exemptWallets);
+    }
 
-        if (!taxData.settings) {
-            return `
-💰 *Tax System Status: DISABLED*
+    // Add a wallet to tax exemption list
+    addTaxExemptWallet(publicKey) {
+        if (typeof publicKey === 'string') {
+            this.exemptWallets.add(publicKey);
+            return true;
+        }
+        return false;
+    }
 
-No tax settings configured for ${tokenInfo ? tokenInfo.name : 'this token'}.
-Use /set_fees to configure tax rates.
-            `;
+    // Remove a wallet from tax exemption list
+    removeTaxExemptWallet(publicKey) {
+        return this.exemptWallets.delete(publicKey);
+    }
+
+    // Set tax rates for a specific token
+    setTokenTaxRates(tokenAddress, buyTax, sellTax, transferTax) {
+        if (!tokenAddress || buyTax < 0 || sellTax < 0 || transferTax < 0) {
+            return null;
         }
 
-        const { settings, stats } = taxData;
+        const rates = {
+            buyTax: Math.min(buyTax, 0.10), // Max 10%
+            sellTax: Math.min(sellTax, 0.10),
+            transferTax: Math.min(transferTax, 0.10),
+            lastUpdated: new Date()
+        };
 
-        return `
-💰 *Tax System Status: ACTIVE*
+        this.tokensWithTax.set(tokenAddress, rates);
+        return rates;
+    }
 
-🏷️ **Token:** ${tokenInfo ? tokenInfo.name : 'Unknown'} (${tokenInfo ? tokenInfo.symbol : 'TOKEN'})
+    // Enable tax for a token
+    enableTaxForToken(tokenAddress) {
+        if (!this.tokensWithTax.has(tokenAddress)) {
+            return this.setTokenTaxRates(tokenAddress, 0.03, 0.05, 0.02); // Default rates
+        }
+        return null;
+    }
 
-📊 **Tax Rates:**
-• Buy Tax: ${settings.buyTaxPercent}%
-• Sell Tax: ${settings.sellTaxPercent}%
-• Tax Recipient: Wallet 1
-
-💵 **Collection Stats:**
-• Total SOL Collected: ${stats.totalSOLCollected.toFixed(6)} SOL
-• Buy Tax Collected: ${stats.totalBuyTaxes.toFixed(6)} SOL  
-• Sell Tax Collected: ${stats.totalSellTaxes.toFixed(6)} SOL
-• Total Transactions: ${stats.totalTransactions}
-• Last Collection: ${stats.lastCollectionDate ? new Date(stats.lastCollectionDate).toLocaleString() : 'Never'}
-
-🚫 **Tax Exempt Wallets:** ${exemptWallets.length}
-${exemptWallets.length > 0 ? exemptWallets.map((wallet, i) => `${i + 1}. \`${wallet.substring(0, 8)}...${wallet.substring(-8)}\``).join('\n') : 'No exempt wallets'}
-        `;
+    // Disable tax for a token
+    disableTaxForToken(tokenAddress) {
+        return this.tokensWithTax.delete(tokenAddress);
     }
 }
 
